@@ -36,7 +36,7 @@
     --ink-dim: #55565c;
     --ink-faint: #94949a;
     --chrome-bg: #fbfbfa;
-    --side: #f1f1ef;
+    --side: #eae9e7;   /* same grey as the canvas — no distinct white panel */
     --live: #fbfbfa;
     /* neutral dark grey stands in for what used to be an accent purple —
        no blue/purple anywhere in the design now, selection/emphasis reads
@@ -206,7 +206,7 @@
   .card {
     position: absolute; width: 560px;
     background: var(--card); border: 1px solid var(--edge-soft);
-    border-radius: var(--r); padding: 22px 16px 10px;
+    border-radius: var(--r); padding: 34px 16px 10px;
     box-shadow: var(--shadow-card);
     cursor: grab; user-select: none;
     transition: box-shadow .15s, border-color .15s, background .15s;
@@ -214,7 +214,9 @@
   .card:hover { background: var(--card-hi); }
   .card.grabbed { cursor: grabbing; box-shadow: 0 18px 40px rgba(20,20,15,.14); border-color: #b3b3af; z-index: 50; }
   .card.blocked { border-color: #c9615f; box-shadow: 0 18px 40px rgba(20,20,15,.14), 0 0 0 1px #c9615f; }
-  .card.is-last { border-color: var(--accent-hi); }
+  /* "last card" used to get a dark border — read as an unwanted black frame.
+     a slightly stronger shadow is enough of a marker on its own. */
+  .card.is-last { box-shadow: 0 2px 4px rgba(20,20,15,.06), 0 10px 22px rgba(20,20,15,.08); }
 
   /* resize: you own the size too, not just the position */
   .card .grip {
@@ -231,14 +233,14 @@
   .card.mini .grip { display: none; }
 
   .card .n {
-    position: absolute; top: 8px; right: 11px;
+    position: absolute; top: 13px; right: 13px;
     font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
   }
   .card .min {
-    position: absolute; top: 6px; left: 8px;
-    width: 20px; height: 20px; border-radius: 5px;
+    position: absolute; top: 8px; left: 10px;
+    width: 26px; height: 26px; border-radius: 7px;
     display: grid; place-items: center;
-    color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1;
+    color: var(--ink-dim); cursor: pointer; font-size: 18px; line-height: 1;
   }
   .card .min:hover { background: #dedede; color: var(--ink); }
 
@@ -398,7 +400,7 @@
     font-size: 13px; color: var(--ink-dim); cursor: pointer;
   }
   #menu .mi:hover { background: #ececea; color: var(--ink); }
-  #menu .mi.danger:hover { color: #c23b34; }
+  #menu .mi.danger:hover { background: #17171a; color: #ffffff; }
   #menu .sep { height: 1px; background: var(--edge); margin: 5px 8px; }
 
   /* ---------- linear: jump between questions ---------- */
@@ -521,18 +523,23 @@
   #flight.done #fa::after { display: none; }
   @keyframes blink { 50% { opacity: 0; } }
 
+  /* grouped into one pill (same language as the node/linear toggle) instead
+     of three loose chips, so it reads as one control, not stray buttons */
   #util {
     position: absolute; left: 18px; bottom: 18px; z-index: 200;
-    display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-faint);
+    display: flex; align-items: center; gap: 2px;
+    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    border-radius: 999px; padding: 4px; box-shadow: var(--shadow-card);
+    font-size: 12px; color: var(--ink-faint);
   }
   #util button {
-    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    background: none; border: 0;
     color: var(--ink-dim); font: inherit; font-size: 12px;
-    padding: 5px 11px; border-radius: 8px; cursor: pointer;
-    box-shadow: var(--shadow-card);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
   }
-  #util button.on { color: var(--ink); border-color: var(--accent-hi); }
-  #zoom { font-variant-numeric: tabular-nums; min-width: 40px; }
+  #util button:hover { background: #ececea; color: var(--ink); }
+  #util button.on { background: #17171a; color: #ffffff; }
+  #zoom { font-variant-numeric: tabular-nums; min-width: 40px; padding: 6px 8px; text-align: center; cursor: default; }
 
   #empty {
     position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%);
@@ -560,6 +567,76 @@
     font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
   }
   #scrim { position: fixed; inset: 0; z-index: 490; background: rgba(0,0,0,.35); display: none; }
+
+  /* ---------- in-app confirm dialog (replaces window.confirm) ---------- */
+  #confirmModal {
+    position: fixed; z-index: 510; display: none;
+    left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: min(360px, calc(100vw - 48px));
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 14px; padding: 20px; box-shadow: var(--shadow-pop);
+  }
+  #confirmModal .cm-msg { font-size: 14px; line-height: 1.5; color: var(--ink); margin-bottom: 18px; }
+  #confirmModal .cm-row { display: flex; justify-content: flex-end; gap: 8px; }
+  #confirmModal button {
+    font: inherit; font-size: 13px; padding: 8px 16px; border-radius: 999px;
+    cursor: pointer; border: 1px solid var(--edge-soft);
+  }
+  #confirmModal .cm-cancel { background: none; color: var(--ink-dim); }
+  #confirmModal .cm-cancel:hover { background: #ececea; color: var(--ink); }
+  #confirmModal .cm-ok { background: #17171a; color: #ffffff; border-color: #17171a; }
+  #confirmModal .cm-ok:hover { background: #000000; }
+
+  /* ---------- search ---------- */
+  #searchModal {
+    position: fixed; z-index: 510; display: none;
+    left: 50%; top: 18%; transform: translateX(-50%);
+    width: min(560px, calc(100vw - 48px)); max-height: 60vh;
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 14px; padding: 10px; box-shadow: var(--shadow-pop);
+    display: none; flex-direction: column;
+  }
+  #searchModal.open { display: flex; }
+  #searchInput {
+    background: var(--q-bg); border: 0; border-radius: 9px; outline: none;
+    color: var(--ink); font: inherit; font-size: 14px; padding: 10px 12px; flex: none;
+  }
+  #searchResults { overflow-y: auto; margin-top: 8px; }
+  .sr-row { padding: 9px 10px; border-radius: 9px; cursor: pointer; }
+  .sr-row:hover { background: #ececea; }
+  .sr-board { font-size: 12px; color: var(--ink-faint); margin-bottom: 2px; }
+  .sr-snip { font-size: 13.5px; color: var(--ink); }
+  .sr-empty { padding: 14px 10px; font-size: 13px; color: var(--ink-faint); }
+
+  /* ---------- settings ---------- */
+  #settingsModal {
+    position: fixed; z-index: 510; display: none;
+    left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: min(400px, calc(100vw - 48px));
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 14px; padding: 22px; box-shadow: var(--shadow-pop);
+  }
+  #settingsModal .sm-title { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 16px; }
+  #settingsModal .sm-field { display: block; margin-bottom: 6px; }
+  #settingsModal .sm-field span { display: block; font-size: 12.5px; color: var(--ink-dim); margin-bottom: 6px; }
+  #settingsModal input {
+    width: 100%; background: var(--q-bg); border: 0; border-radius: 8px;
+    color: var(--ink); font: inherit; font-size: 13.5px; padding: 9px 11px;
+    outline: none; box-sizing: border-box;
+  }
+  #settingsModal .sm-hint { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; margin: 6px 0 16px; }
+  #settingsModal .sm-sep { height: 1px; background: var(--edge-soft); margin: 4px 0 16px; }
+  #settingsModal .sm-danger {
+    width: 100%; background: none; border: 1px solid #e3b3af; color: #b23b34;
+    font: inherit; font-size: 13px; padding: 9px 11px; border-radius: 8px; cursor: pointer;
+  }
+  #settingsModal .sm-danger:hover { background: #fdecebe6; }
+  #settingsModal .sm-row { display: flex; justify-content: flex-end; margin-top: 4px; }
+  #settingsModal .sm-row button {
+    font: inherit; font-size: 13px; padding: 8px 18px; border-radius: 999px;
+    cursor: pointer; border: 0; background: #17171a; color: #ffffff;
+  }
+  #settingsModal .sm-row button:hover { background: #000000; }
 
   /* ---------- image cards ---------- */
   .imgcard .imgwrap {
@@ -722,14 +799,47 @@
   </div>
 
   <div id="util">
-    <button id="tThread">thread</button>
-    <button id="tHome">home</button>
-    <span id="zoom">100%</span>
+    <button id="tThread" title="Draw a faint line connecting cards in the order you created them">thread</button>
+    <button id="tHome" title="Recenter the camera on your most recent card">home</button>
+    <span id="zoom" title="Zoom level — scroll or pinch on the canvas to change it">100%</span>
   </div>
 </div>
 
 <div id="scrim"></div>
 <div id="reader"><div class="rn"></div><div class="rq"></div><div class="ra"></div></div>
+
+<div id="confirmModal">
+  <div class="cm-msg"></div>
+  <div class="cm-row">
+    <button class="cm-cancel">Cancel</button>
+    <button class="cm-ok">Delete</button>
+  </div>
+</div>
+
+<div id="searchModal">
+  <input id="searchInput" placeholder="Search board names and card content…" autocomplete="off">
+  <div id="searchResults"></div>
+</div>
+
+<div id="settingsModal">
+  <div class="sm-title">Settings</div>
+  <label class="sm-field">
+    <span>Your name</span>
+    <input id="setName" autocomplete="off">
+  </label>
+  <label class="sm-field">
+    <span>Live-voice voice (optional)</span>
+    <input id="setVoice" placeholder="server default — e.g. marin, cedar, alloy" autocomplete="off">
+  </label>
+  <div class="sm-hint">Overrides the voice used for live conversation (Mode 2). Leave blank to use whatever's set on the server.</div>
+  <div class="sm-sep"></div>
+  <div class="sm-field">
+    <span>Local data</span>
+    <button id="setClear" class="sm-danger">Clear all boards on this browser</button>
+  </div>
+  <div class="sm-hint">Boards (including any uploaded images) are only saved in this browser's storage — there's no account or server-side copy. This permanently erases them here.</div>
+  <div class="sm-row"><button id="setClose">Done</button></div>
+</div>
 
 <div id="linkedit">
   <input id="linkword" placeholder="bridge word (optional)" autocomplete="off">
@@ -897,9 +1007,10 @@
     });
   }
   // shared by the sidebar hover-delete icon and the ••• menu's Delete item
-  function deleteBoard(b) {
+  async function deleteBoard(b) {
     if (boards.length <= 1) { flashStatus("Can't delete your only chat.", 'err', 2600); return; }
-    if (!window.confirm('Delete "' + b.name + '"? This can\'t be undone.')) return;
+    var ok = await askConfirm('Delete "' + b.name + '"? This can\'t be undone.', 'Delete');
+    if (!ok) return;
     var idx = boards.indexOf(b);
     if (b === B) {
       var next = boards[idx + 1] || boards[idx - 1] || boards[0];
@@ -1370,9 +1481,126 @@
     }
     reader.style.display = 'block'; scrim.style.display = 'block'; reader.scrollTop = 0;
   }
-  function closeReader() { reader.style.display = 'none'; scrim.style.display = 'none'; }
-  scrim.addEventListener('pointerdown', closeReader);
-  window.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeReader(); });
+  function closeReader() { reader.style.display = 'none'; hideScrimIfNothingOpen(); }
+
+  // ---------- shared scrim: several modals sit behind the same dim backdrop,
+  // so closing one shouldn't blindly hide it out from under another ----------
+  function anyModalOpen() {
+    return reader.style.display === 'block' || confirmModal.style.display === 'block' ||
+           searchModal.classList.contains('open') || settingsModal.style.display === 'block';
+  }
+  function showScrim() { scrim.style.display = 'block'; }
+  function hideScrimIfNothingOpen() { if (!anyModalOpen()) scrim.style.display = 'none'; }
+  scrim.addEventListener('pointerdown', function () {
+    closeReader(); closeConfirm(false); closeSearch(); closeSettings();
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    closeReader(); closeConfirm(false); closeSearch(); closeSettings();
+  });
+
+  // ---------- in-app confirm dialog (replaces window.confirm — no native
+  // browser popup, matches the app's own look) ----------
+  var confirmModal = document.getElementById('confirmModal');
+  var confirmResolve = null;
+  function askConfirm(message, okLabel) {
+    return new Promise(function (resolve) {
+      confirmModal.querySelector('.cm-msg').textContent = message;
+      confirmModal.querySelector('.cm-ok').textContent = okLabel || 'Delete';
+      confirmModal.style.display = 'block'; showScrim();
+      confirmResolve = resolve;
+    });
+  }
+  function closeConfirm(result) {
+    if (confirmModal.style.display !== 'block') return;
+    confirmModal.style.display = 'none'; hideScrimIfNothingOpen();
+    if (confirmResolve) { var r = confirmResolve; confirmResolve = null; r(result); }
+  }
+  confirmModal.querySelector('.cm-cancel').addEventListener('click', function () { closeConfirm(false); });
+  confirmModal.querySelector('.cm-ok').addEventListener('click', function () { closeConfirm(true); });
+
+  // ---------- search: board names + every card's question/answer text ----------
+  var searchModal = document.getElementById('searchModal');
+  var searchInput = document.getElementById('searchInput');
+  var searchResults = document.getElementById('searchResults');
+  function openSearch() {
+    searchModal.classList.add('open'); showScrim();
+    searchInput.value = ''; renderSearchResults('');
+    setTimeout(function () { searchInput.focus(); }, 0);
+  }
+  function closeSearch() {
+    if (!searchModal.classList.contains('open')) return;
+    searchModal.classList.remove('open'); hideScrimIfNothingOpen();
+  }
+  function renderSearchResults(qraw) {
+    var q = qraw.trim().toLowerCase();
+    searchResults.innerHTML = '';
+    if (!q) { searchResults.innerHTML = '<div class="sr-empty">Type to search board names and card content.</div>'; return; }
+    var hits = [];
+    boards.forEach(function (b) {
+      if (b.name.toLowerCase().indexOf(q) !== -1) hits.push({ board: b, card: null, snippet: '(board name)' });
+      (b.cards || []).forEach(function (c) {
+        var src = (c.q && c.q.toLowerCase().indexOf(q) !== -1) ? c.q : ((c.a && c.a.toLowerCase().indexOf(q) !== -1) ? c.a : null);
+        if (!src) return;
+        var idx = src.toLowerCase().indexOf(q);
+        var start = Math.max(0, idx - 30), end = Math.min(src.length, idx + q.length + 50);
+        hits.push({ board: b, card: c, snippet: (start > 0 ? '…' : '') + src.slice(start, end) + (end < src.length ? '…' : '') });
+      });
+    });
+    if (!hits.length) { searchResults.innerHTML = '<div class="sr-empty">No matches.</div>'; return; }
+    hits.slice(0, 60).forEach(function (h) {
+      var row = document.createElement('div');
+      row.className = 'sr-row';
+      row.innerHTML = '<div class="sr-board"></div><div class="sr-snip"></div>';
+      row.querySelector('.sr-board').textContent = h.board.name;
+      row.querySelector('.sr-snip').textContent = h.snippet;
+      row.addEventListener('click', function () {
+        closeSearch();
+        switchTo(h.board);
+        if (h.card && UI.mode === 'node') centerOnCard(h.card);
+      });
+      searchResults.appendChild(row);
+    });
+  }
+  searchInput.addEventListener('input', function () { renderSearchResults(searchInput.value); });
+  document.getElementById('nSearch').addEventListener('click', openSearch);
+
+  // ---------- settings: a real (small) panel instead of a dead stub ----------
+  var PROFILE_KEY = 'spatialBoard.profile.v1';
+  var profile = { name: 'You', voice: '' };
+  (function loadProfile() {
+    try {
+      var raw = localStorage.getItem(PROFILE_KEY);
+      if (raw) { var p = JSON.parse(raw); if (p && typeof p === 'object') profile = { name: p.name || 'You', voice: p.voice || '' }; }
+    } catch (e) { /* ignore, use defaults */ }
+  })();
+  function saveProfile() {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) { /* not critical */ }
+  }
+  function applyProfile() { document.getElementById('whoname').textContent = profile.name || 'You'; }
+
+  var settingsModal = document.getElementById('settingsModal');
+  var setName = document.getElementById('setName'), setVoice = document.getElementById('setVoice');
+  function openSettings() {
+    setName.value = profile.name || ''; setVoice.value = profile.voice || '';
+    settingsModal.style.display = 'block'; showScrim();
+    setTimeout(function () { setName.focus(); }, 0);
+  }
+  function closeSettings() {
+    if (settingsModal.style.display !== 'block') return;
+    settingsModal.style.display = 'none'; hideScrimIfNothingOpen();
+  }
+  setName.addEventListener('input', function () { profile.name = setName.value; applyProfile(); saveProfile(); });
+  setVoice.addEventListener('input', function () { profile.voice = setVoice.value.trim(); saveProfile(); });
+  document.getElementById('setClose').addEventListener('click', closeSettings);
+  document.getElementById('setClear').addEventListener('click', async function () {
+    var ok = await askConfirm('Erase every board saved in this browser? This can\'t be undone — use Export board (.json) first if you want a backup.', 'Erase everything');
+    if (!ok) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    location.reload();
+  });
+  document.getElementById('settings').addEventListener('click', openSettings);
+  applyProfile();
 
   // ---------- linear: a chat, not a lens onto a board ----------
   var TOP_PAD = 26, BOT_ROOM = 118, ROW_GAP = 4;
@@ -1666,7 +1894,7 @@
     var sp = 48 * B.view.z;
     if (sp < 12) return;
     var ox = ((B.view.x % sp) + sp) % sp, oy = ((B.view.y % sp) + sp) % sp;
-    dctx.fillStyle = '#2a2a2d';
+    dctx.fillStyle = '#dddcda';   // ~5% darker than --bg, not a leftover dark-theme black
     for (var x = ox - sp; x < w; x += sp) for (var y = oy - sp; y < h; y += sp) dctx.fillRect(x, y, 1.5, 1.5);
   }
 
@@ -2028,18 +2256,15 @@
     if (B && B.cards.length === 0) { flash(this); input.focus(); return; }
     switchTo(newBoard('Untitled'));
   });
-  ['nSearch', 'nImages', 'settings'].forEach(function (id) {
+  // Library and Images aren't built features yet — say so instead of a
+  // silent no-op, since a dead click reads as broken rather than unbuilt.
+  // Search and Settings are real now (wired up further down).
+  ['nLibrary', 'nImages'].forEach(function (id) {
+    var label = id === 'nLibrary' ? 'Library' : 'Images';
     document.getElementById(id).addEventListener('click', function () {
-      this.classList.add('on');
-      var self = this;
-      setTimeout(function () { self.classList.remove('on'); }, 140);
+      flash(this);
+      flashStatus(label + " isn't built yet — every board lives in the sidebar for now.", '', 2800);
     });
-  });
-  // Library isn't a built feature yet — say so instead of a silent no-op,
-  // since a dead click reads as broken rather than unbuilt.
-  document.getElementById('nLibrary').addEventListener('click', function () {
-    flash(this);
-    flashStatus("Library isn't built yet — every board lives in the sidebar for now.", '', 2800);
   });
 
   // ---------- share + board menu ----------
@@ -2056,7 +2281,20 @@
   window.addEventListener('pointerdown', function (e) {
     if (!menu.contains(e.target) && e.target.id !== 'dots3') menu.classList.remove('open');
   });
-  document.getElementById('shareBtn').addEventListener('click', function () { flash(this); });
+  document.getElementById('shareBtn').addEventListener('click', function () {
+    flash(this);
+    var btn = this;
+    var url = location.origin && location.origin.indexOf('http') === 0 ? location.href : 'https://spatial-board.onrender.com/board.html';
+    var title = B.name || 'Spatial board';
+    var text = 'Boards live in this browser only right now, so this link opens the app, not this exact board — ' +
+      'export it first (••• menu → Export board) if you want to hand someone the actual content.';
+    if (navigator.share) {
+      navigator.share({ title: title, text: text, url: url }).catch(function () {});
+    } else {
+      copyText(url, btn);
+      flashStatus('Link copied — ' + text, '', 4600);
+    }
+  });
   document.getElementById('miPin').addEventListener('click', function () {
     B.pinned = !B.pinned; renderRecents(); menu.classList.remove('open'); scheduleSave();
   });
@@ -2096,12 +2334,15 @@
   document.getElementById('tThread').addEventListener('click', function () {
     UI.thread = !UI.thread; this.classList.toggle('on', UI.thread); draw();
   });
-  document.getElementById('tHome').addEventListener('click', function () {
-    var c = byId(B.lastId); if (!c) return;
+  function centerOnCard(c) {
+    if (!c) return;
     var p = renderPos(c);
     B.view.x = SR.w / 2 - (p.x + c.w / 2) * B.view.z;
     B.view.y = SR.h / 2 - (p.y + c.h / 2) * B.view.z;
     draw();
+  }
+  document.getElementById('tHome').addEventListener('click', function () {
+    centerOnCard(byId(B.lastId));
   });
   window.addEventListener('resize', function () { syncRect(); draw(); updateBarThumb(); });
 
@@ -2258,7 +2499,11 @@
     var stream, pc, token;
     // 1) ephemeral token from relay
     try {
-      var sres = await fetch(RELAY + '/session', { method: 'POST' });
+      var sres = await fetch(RELAY + '/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: (profile && profile.voice) || undefined })
+      });
       if (!sres.ok) {
         var d = await sres.text().catch(function () { return ''; });
         throw new Error('session HTTP ' + sres.status + (d ? ' — ' + d.slice(0, 160) : ''));
