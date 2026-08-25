@@ -193,8 +193,12 @@ app.post('/transcribe', express.raw({ type: '*/*', limit: '25mb' }), async (req,
 // response shape also shifted (some accounts get the token as a top-level
 // "value", others nested under "client_secret.value") — this handles both so
 // a future minor API tweak doesn't silently break voice again.
-app.post('/session', async (req, res) => {
+app.post('/session', express.json({ limit: '10kb' }), async (req, res) => {
   try {
+    // A tester can set a preferred voice in Settings; that overrides the
+    // server's default (REALTIME_VOICE env, or 'marin') for just their call.
+    const requestedVoice = req.body && typeof req.body.voice === 'string' ? req.body.voice.trim() : '';
+    const voice = requestedVoice || process.env.REALTIME_VOICE || 'marin';
     const r = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
       method: 'POST',
       headers: {
@@ -205,7 +209,7 @@ app.post('/session', async (req, res) => {
         session: {
           type: 'realtime',
           model: REALTIME_MODEL,
-          audio: { output: { voice: process.env.REALTIME_VOICE || 'marin' } }
+          audio: { output: { voice: voice } }
         }
       })
     });
