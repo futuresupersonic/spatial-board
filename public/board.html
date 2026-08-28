@@ -253,6 +253,7 @@
   .card .a {
     white-space: pre-wrap; word-break: break-word; padding: 0 4px;
     overflow: hidden;
+    user-select: text; cursor: text;   /* selectable so you can quote it back into a question */
   }
   .card.clipped .a {
     -webkit-mask-image: linear-gradient(#000 72%, transparent);
@@ -417,29 +418,86 @@
   #rail .rl:hover { background: #9a9a96; width: 26px; }
   #rail .rl.on { background: var(--ink-dim); width: 26px; }
 
+  /* grows with content, Claude/ChatGPT-style, instead of staying a fixed
+     52px pill — a longer, organized draft (line breaks, a pasted list)
+     needs room to actually be readable before you send it. */
   #composer {
     position: absolute; z-index: 200;
     left: 50%; transform: translateX(-50%); bottom: 26px;
-    width: min(768px, calc(100% - 48px)); height: 52px;
+    width: min(768px, calc(100% - 48px));
     background: var(--chrome-bg); border: 1px solid var(--edge-soft);
-    border-radius: 26px; display: flex; align-items: center; gap: 10px;
-    padding: 0 7px 0 20px; box-shadow: var(--shadow-card);
+    border-radius: 26px; box-shadow: var(--shadow-card);
+    display: flex; flex-direction: column;
+    transition: border-radius .15s;
   }
-  #composer input {
-    flex: 1; background: none; border: 0; outline: none;
-    color: var(--ink); font: inherit; padding: 0;
+  #composer.tall { border-radius: 20px; }
+  #composerRow {
+    display: flex; align-items: flex-end; gap: 10px; min-height: 52px;
+    box-sizing: border-box; padding: 9px 7px 9px 20px;
   }
-  #composer input::placeholder { color: var(--ink-faint); }
+  /* "referencing this selection" chip — shown when a question is about to
+     quote a snippet selected from a card's answer (see #quotePop below). */
+  #quoteChip {
+    display: none; align-items: flex-start; gap: 8px;
+    margin: 12px 16px 0 20px; padding: 8px 10px;
+    background: var(--q-bg); border-radius: 10px;
+    font-size: 12.5px; color: var(--ink-dim); line-height: 1.4;
+  }
+  #quoteChip.show { display: flex; }
+  #quoteChip svg { flex: none; margin-top: 2px; color: var(--ink-faint); }
+  #quoteChip span { flex: 1; white-space: pre-wrap; word-break: break-word; }
+  #quoteChip button {
+    flex: none; background: none; border: 0; color: var(--ink-faint);
+    cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
+  }
+  #quoteChip button:hover { color: var(--ink); }
+
+  /* the floating "Ask about this" button that appears near a text
+     selection made inside a card's answer. */
+  #quotePop { display: none; position: fixed; z-index: 250; transform: translate(-50%, -100%); }
+  #quotePop.show { display: block; }
+  #quotePop button {
+    background: #17171a; color: #fff; border: 0; font: inherit; font-size: 12.5px;
+    padding: 7px 14px 7px 12px; border-radius: 999px; cursor: pointer;
+    box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  #quotePop button:hover { background: #000; }
+
+  #composerRow textarea {
+    flex: 1; background: none; border: 0; outline: none; resize: none;
+    color: var(--ink); font: inherit; padding: 5px 0; margin: 0;
+    line-height: 1.45; max-height: 200px; overflow-y: auto;
+  }
+  #composer textarea::placeholder { color: var(--ink-faint); }
+  #dictate, #attach, #orb { position: relative; }
   #dictate, #attach {
     width: 34px; height: 34px; border-radius: 50%; flex: none; cursor: pointer;
     display: grid; place-items: center; color: var(--ink-dim);
-    background: none; border: 1px solid var(--edge);
-    transition: color .15s, border-color .15s, background .15s;
+    background: none; border: 1px solid var(--edge); margin-bottom: 2px;
+    transition: color .15s, border-color .15s, background .15s, transform .1s;
   }
   #dictate svg, #attach svg { width: 16px; height: 16px; }
-  #dictate:hover, #attach:hover { color: var(--ink); border-color: #b5b5b1; }
+  #dictate:hover, #attach:hover { color: var(--ink); border-color: #b5b5b1; background: #ececea; }
+  #dictate:active, #attach:active { transform: scale(.9); background: #dedede; }
+  #orb:active { transform: scale(.92); }
   #dictate.rec { color: #fff; background: #d2483f; border-color: #d2483f; animation: breathe 1.4s ease-in-out infinite; }
   #dictate.busy { color: var(--ink-dim); border-color: var(--edge); animation: breathe 1s ease-in-out infinite; }
+
+  /* dark pill tooltip above each composer icon — same language as the
+     per-card action-button tooltips, so hovering any icon in the app
+     explains itself the same way. native title="" attributes are too easy
+     to miss (slow to appear, plain OS styling); this is instant and
+     consistent with the rest of the design. */
+  #attach[data-t]::after, #dictate[data-t]::after, #orb[data-t]::after {
+    content: attr(data-t); position: absolute; bottom: calc(100% + 10px);
+    left: 50%; transform: translateX(-50%);
+    background: #202024; border: 1px solid #2c2c30; color: #f2f2f0;
+    font-size: 11px; padding: 4px 8px; border-radius: 5px;
+    white-space: nowrap; opacity: 0; pointer-events: none;
+    transition: opacity .12s; z-index: 210;
+  }
+  #attach:hover::after, #dictate:hover::after, #orb:hover::after { opacity: 1; }
 
   /* voice status line, above the composer. not part of the canvas. */
   #vstatus {
@@ -464,8 +522,35 @@
   #vstatus.speaking .dot  { background: #17171a; animation: breathe 1.1s ease-in-out infinite; }
   #vstatus.connecting .dot{ background: #9a9a96; animation: breathe .8s ease-in-out infinite; }
 
-  /* orb state tints (Mode 2). base is a neutral charcoal orb, matching the
-     node/linear toggle's black — no blue/purple anywhere in this design. */
+  /* "read out loud" playback — a persistent, always-visible stop control
+     while a card is being read. Not the ••• menu: needing to reopen a
+     hidden per-card dropdown mid-playback just to stop it isn't a real
+     way to stop it. */
+  #ttsBar {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 132px; z-index: 160; display: none;
+    align-items: center; gap: 10px;
+    font-size: 13.5px; font-weight: 500; color: var(--ink);
+    background: #fbfbfae6; border: 1px solid var(--edge-soft);
+    padding: 6px 8px 6px 16px; border-radius: 999px; white-space: nowrap;
+    backdrop-filter: blur(6px); box-shadow: var(--shadow-card);
+  }
+  #ttsBar.show { display: flex; }
+  #ttsBar .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #17171a; animation: breathe 1.1s ease-in-out infinite;
+  }
+  #ttsBar button {
+    background: #17171a; color: #fff; border: 0; font: inherit; font-size: 12.5px;
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #ttsBar button:hover { background: #000; }
+
+  /* orb state tints (Mode 2). flat charcoal — matching the node/linear
+     toggle's flat black — no gradient/glossy sphere, no blue/purple. the
+     icon itself is a small audio-waveform glyph so it reads as "voice"
+     rather than an abstract dot. */
   #orb.connecting { animation: breathe .8s ease-in-out infinite; }
   #orb.listening  { box-shadow: 0 0 0 3px #38b56655; animation: breathe 1.2s ease-in-out infinite; }
   #orb.thinking   { box-shadow: 0 0 0 3px #c99a2e55; animation: breathe .9s ease-in-out infinite; }
@@ -474,10 +559,10 @@
   #orb {
     width: 40px; height: 40px; border-radius: 50%; flex: none; cursor: pointer;
     display: grid; place-items: center; color: #ffffff;
-    background: radial-gradient(circle at 34% 28%, #4a4a4f, #222225 58%, #0e0e10);
-    opacity: .9; transform: scale(1); transition: opacity .25s, transform .25s;
+    background: #17171a;
+    opacity: .9; transform: scale(1); transition: opacity .25s, transform .25s, background .15s;
   }
-  #orb:hover { opacity: 1; }
+  #orb:hover { opacity: 1; background: #000; }
   #orb svg { width: 17px; height: 17px; pointer-events: none; }
   #orb.live { opacity: 1; transform: scale(1); animation: breathe 1.9s ease-in-out infinite; }
   #orb.live svg { display: none; }
@@ -667,7 +752,57 @@
   @media (prefers-reduced-motion: reduce) {
     #side, #stage, #flight.flying, #orb.live, #fa::after { transition: none; animation: none; }
   }
+
+  /* ================= mobile ================= */
+  /* Below this width the fixed 258px sidebar would eat most of the screen,
+     so it becomes an off-canvas drawer instead: hidden by default, slides
+     in as an overlay over the (full-width) stage. Reuses the existing
+     "rail" toggle class — on desktop that class means "compact icon rail",
+     on mobile it means "drawer open" — same button, same boolean, the CSS
+     underneath it just means something else at this width. */
+  #sideScrim {
+    display: none; position: fixed; inset: 0; z-index: 399;
+    background: rgba(15,15,13,.32);
+  }
+  #mobileMenuBtn {
+    display: none; position: fixed; top: 16px; left: 16px; z-index: 250;
+    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    box-shadow: var(--shadow-card);
+  }
+  @media (max-width: 720px) {
+    #side {
+      transform: translateX(-100%); width: min(84vw, 300px);
+      box-shadow: var(--shadow-pop);
+    }
+    body.rail #side { transform: translateX(0); width: min(84vw, 300px); }
+    /* on mobile "rail" means open, not compact — undo the desktop
+       icon-only-rail treatment for this width */
+    body.rail .railhide { opacity: 1; pointer-events: auto; }
+    body.rail #recents { visibility: visible; }
+    #stage, body.rail #stage { left: 0 !important; }
+    body.rail #sideScrim { display: block; }
+    #mobileMenuBtn { display: flex; }
+    body.rail #mobileMenuBtn { display: none; }
+
+    /* top row gets tight — trim padding so bar/share/menu-btn all fit */
+    #bar { top: 14px; padding: 3px; }
+    #bar button { min-width: 0; padding: 5px 12px; font-size: 12.5px; }
+    #share { top: 14px; right: 14px; gap: 4px; }
+    #share button { padding: 6px 10px; font-size: 12.5px; }
+    #share button span.lbl-full { display: none; }
+
+    /* util pill would collide with the composer at this width — move it
+       to its own row above the composer instead of sharing the bottom-left */
+    #util { left: 50%; transform: translateX(-50%); bottom: 84px; }
+
+    .card { width: min(560px, 84vw); }
+  }
 </style>
+
+<div id="sideScrim"></div>
+<div id="mobileMenuBtn" class="iconbtn" title="Menu">
+  <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h13M2.5 9h13M2.5 13h13"/></svg>
+</div>
 
 <div id="side">
   <div id="brand">
@@ -737,7 +872,7 @@
   <div id="share">
     <button id="shareBtn">
       <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V2.5"/><path d="M5.6 5.9L9 2.5l3.4 3.4"/><path d="M3.5 11v3.5a1 1 0 001 1h9a1 1 0 001-1V11"/></svg>
-      Share
+      <span class="lbl-full">Share</span>
     </button>
     <button id="dots3">•••</button>
     <div id="menu">
@@ -789,13 +924,26 @@
   <div id="flight"><div id="fq"></div><div id="fa"></div></div>
 
   <div id="vstatus"></div>
+  <div id="ttsBar">
+    <span class="dot"></span><span id="ttsLabel">Reading…</span>
+    <button id="ttsStop" title="Stop reading">Stop</button>
+  </div>
+
+  <div id="quotePop"><button id="quotePopBtn"><svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v12"/><path d="M3 9h12"/></svg>Ask about this</button></div>
 
   <div id="composer">
-    <input id="attachFile" type="file" accept="image/*" multiple style="display:none">
-    <div id="attach" title="Add image"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><circle cx="6.4" cy="7" r="1.3"/><path d="M2.6 12.5l3.6-3.4 3.2 3 2.4-2.2 3.6 3.3"/></svg></div>
-    <input id="input" placeholder="type, or hold the mic to dictate" autocomplete="off">
-    <div id="dictate" title="Dictate (Mode 1)"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="1.8" width="5" height="9" rx="2.5"/><path d="M3.8 8.2a5.2 5.2 0 0010.4 0"/><path d="M9 13.4v2.8"/></svg></div>
-    <div id="orb" title="Live conversation (Mode 2)"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.2a6.8 6.8 0 016.8 6.8A6.8 6.8 0 019 15.8 6.8 6.8 0 012.2 9 6.8 6.8 0 019 2.2z"/><circle cx="9" cy="9" r="2.6" fill="currentColor" stroke="none"/></svg></div>
+    <div id="quoteChip">
+      <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5H3.5a1 1 0 00-1 1v3a1 1 0 001 1H5l1.2 2.6V5.5a1 1 0 00-1-1z"/><path d="M14.5 4.5H12a1 1 0 00-1 1v3a1 1 0 001 1h1.5l1.2 2.6V5.5a1 1 0 00-1-1z"/></svg>
+      <span id="quoteChipText"></span>
+      <button id="quoteChipX" title="Remove reference">&times;</button>
+    </div>
+    <div id="composerRow">
+      <input id="attachFile" type="file" accept="image/*" multiple style="display:none">
+      <div id="attach" data-t="Add image"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><circle cx="6.4" cy="7" r="1.3"/><path d="M2.6 12.5l3.6-3.4 3.2 3 2.4-2.2 3.6 3.3"/></svg></div>
+      <textarea id="input" rows="1" placeholder="Ask anything — tap the mic to speak" autocomplete="off"></textarea>
+      <div id="dictate" data-t="Dictate"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="1.8" width="5" height="9" rx="2.5"/><path d="M3.8 8.2a5.2 5.2 0 0010.4 0"/><path d="M9 13.4v2.8"/></svg></div>
+      <div id="orb" data-t="Start Live Voice"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v13"/><path d="M5.6 5.4v7.2"/><path d="M2.4 7.4v3.2"/><path d="M12.4 5.4v7.2"/><path d="M15.6 7.4v3.2"/></svg></div>
+    </div>
   </div>
 
   <div id="util">
@@ -1202,26 +1350,54 @@
     amenu.classList.remove('open');
   });
 
-  // ---- read out loud: browser-native TTS, no server round-trip / API cost ----
-  var speaking = null;   // the card currently being read, or null
-  function readAloud(c) {
-    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-      flashStatus("This browser doesn't support text-to-speech.", 'err', 3200);
-      return;
-    }
-    if (speaking === c) {               // clicking it again on the same card stops it
-      window.speechSynthesis.cancel();
-      speaking = null;
-      return;
-    }
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(c.a || '');
-    u.rate = 1;
-    u.onend = function () { if (speaking === c) speaking = null; };
-    u.onerror = function () { if (speaking === c) speaking = null; };
+  // ---- read out loud: real speech from the server's /tts, not the browser's
+  // built-in speechSynthesis — that's a robotic system voice, not a neural
+  // one, which is why it sounded nothing like a live-conversation reply or
+  // ChatGPT/Claude's own voice. This does cost a small amount of OpenAI
+  // usage per read (unlike the old free browser TTS), same as live voice.
+  var speaking = null;    // the card currently being read, or null
+  var speakAudio = null;  // the <audio> element currently playing, or null
+  var speakUrl = null;    // its object URL, so it can be revoked on stop
+  var ttsBar = document.getElementById('ttsBar');
+  var ttsLabel = document.getElementById('ttsLabel');
+  function stopReading() {
+    if (speakAudio) { speakAudio.pause(); speakAudio.src = ''; speakAudio = null; }
+    if (speakUrl) { URL.revokeObjectURL(speakUrl); speakUrl = null; }
+    speaking = null;
+    ttsBar.classList.remove('show');
+  }
+  document.getElementById('ttsStop').addEventListener('click', stopReading);
+  async function readAloud(c) {
+    if (speaking === c) { stopReading(); return; }   // clicking it again stops it
+    stopReading();                                     // switching cards mid-read stops the old one
+    var text = (c.a || '').trim();
+    if (!text) return;
     speaking = c;
-    window.speechSynthesis.speak(u);
-    flashStatus('Reading ' + label(c) + ' out loud — open the ••• menu on it again to stop.', '', 3200);
+    ttsLabel.textContent = 'Loading audio for ' + label(c) + '…';
+    ttsBar.classList.add('show');
+    try {
+      var r = await fetch(RELAY + '/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, voice: profile.voice })
+      });
+      if (!r.ok) {
+        var d = await r.text().catch(function () { return ''; });
+        throw new Error('HTTP ' + r.status + (d ? ' — ' + d.slice(0, 160) : ''));
+      }
+      if (speaking !== c) return;   // stopped, or switched cards, while this was loading
+      var blob = await r.blob();
+      if (speaking !== c) return;
+      speakUrl = URL.createObjectURL(blob);
+      speakAudio = new Audio(speakUrl);
+      ttsLabel.textContent = 'Reading ' + label(c);
+      speakAudio.onended = function () { if (speaking === c) stopReading(); };
+      speakAudio.onerror = function () { if (speaking === c) { stopReading(); flashStatus('Playback failed.', 'err', 3200); } };
+      speakAudio.play();
+    } catch (err) {
+      if (speaking === c) stopReading();
+      flashStatus('Could not read that aloud: ' + (err.message || err) + ' — is the server running with an OpenAI key?', 'err', 4600);
+    }
   }
   // detach a child: keep its 5-1 identity, but free it as its own node and
   // remove the auto lineage link so it no longer visually hangs off the parent.
@@ -1257,6 +1433,7 @@
   function startEdit(c) {
     if (UI.busy) return;
     input.value = c.q;
+    autoGrowInput();
     B.lastId = c.id;            // new card lands right of the one you're editing
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
@@ -1270,6 +1447,7 @@
   function buildEl(c) {
     var el = document.createElement('div');
     el.className = 'card' + (c.mini ? ' mini' : '') + (c.img ? ' imgcard' : '');
+    el.dataset.id = c.id;   // lets a text selection inside a card find its way back to the model
 
     if (c.img) {
       var IA = imgActsHTML();
@@ -1375,6 +1553,9 @@
     el.querySelector('.bar').textContent = c.q;
     el.querySelector('.pq').textContent = c.q;
     el.querySelector('.pa').textContent = c.a;
+    // don't start a card-drag from inside the answer text — it needs a plain
+    // mousedown-drag to select text so you can quote it back into a question
+    el.querySelector('.a').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
     el.querySelector('.more').addEventListener('pointerdown', function (e) {
       e.stopPropagation(); openReader(c);
     });
@@ -1968,17 +2149,53 @@
   }
 
   // ---------- pan / zoom ----------
+  // A single finger (or the mouse) pans, same as before. A second finger
+  // landing on the canvas switches to pinch: distance between the two
+  // touches drives zoom, their midpoint drives pan, both anchored so the
+  // point under your fingers stays under your fingers — the same
+  // zoom-around-a-point math the wheel handler below uses, just re-anchored
+  // every frame to the pinch midpoint instead of the cursor.
   var pan = null;
+  var touches = new Map();   // pointerId -> last {x, y}, active canvas touches only
+  var pinch = null;          // {dist, z0} snapshot from the moment the 2nd finger landed
+  function touchDist() {
+    var p = Array.from(touches.values());
+    return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+  }
+  function touchMid() {
+    var p = Array.from(touches.values());
+    return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+  }
   stage.addEventListener('pointerdown', function (e) {
     if (e.target.closest('.card') || e.target.closest('#composer') ||
         e.target.closest('#bar') || e.target.closest('#util') || e.target.closest('#flight') ||
         e.target.closest('#links') || e.target.closest('#linkedit')) return;
-    pan = { x: e.clientX, y: e.clientY };
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size >= 2 && UI.mode === 'node') {
+      pan = null;
+      pinch = { dist: touchDist(), z0: B.view.z };
+    } else if (touches.size === 1) {
+      pan = { x: e.clientX, y: e.clientY };
+    }
     stage.classList.add('panning'); UI.dragging = true;
     window.addEventListener('pointermove', onPan);
     window.addEventListener('pointerup', endPan);
+    window.addEventListener('pointercancel', endPan);
   });
   function onPan(e) {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinch && touches.size >= 2) {
+      var mid = touchMid(), dist = touchDist();
+      var z = Math.min(2.5, Math.max(0.12, pinch.z0 * (dist / (pinch.dist || 1))));
+      var k = z / B.view.z;
+      var mx = ex({ clientX: mid.x, clientY: mid.y }), my = ey({ clientX: mid.x, clientY: mid.y });
+      B.view.x = mx - (mx - B.view.x) * k;
+      B.view.y = my - (my - B.view.y) * k;
+      B.view.z = z; draw();
+      return;
+    }
+
     if (!pan) return;
     if (UI.mode === 'linear') {
       B.scroll -= e.clientY - pan.y;       // vertical only. no sideways drift.
@@ -1988,10 +2205,23 @@
     }
     pan = { x: e.clientX, y: e.clientY }; draw();
   }
-  function endPan() {
-    pan = null; UI.dragging = false; stage.classList.remove('panning');
-    window.removeEventListener('pointermove', onPan);
-    window.removeEventListener('pointerup', endPan);
+  function endPan(e) {
+    if (e && touches.has(e.pointerId)) touches.delete(e.pointerId);
+    if (touches.size >= 2) {
+      // still 2+ fingers down (a 3rd joined, or one of two lifted and
+      // another was already there) — re-anchor pinch from here, no jump
+      pinch = { dist: touchDist(), z0: B.view.z };
+    } else if (touches.size === 1) {
+      // down to one finger — resume a plain pan from its current position
+      pinch = null;
+      var last = Array.from(touches.values())[0];
+      pan = { x: last.x, y: last.y };
+    } else {
+      pinch = null; pan = null; UI.dragging = false; stage.classList.remove('panning');
+      window.removeEventListener('pointermove', onPan);
+      window.removeEventListener('pointerup', endPan);
+      window.removeEventListener('pointercancel', endPan);
+    }
   }
 
   stage.addEventListener('wheel', function (e) {
@@ -2020,16 +2250,103 @@
       input.placeholder = 'follow-up under ' + label(c) + ' — Esc to cancel';
       input.focus();
     } else {
-      input.placeholder = 'type, or hold the mic to dictate';
+      input.placeholder = 'Ask anything — tap the mic to speak';
+      clearQuote();   // injectTarget and the pending quote always live and die together
     }
     draw();
   }
 
+  // ---------- quote-and-ask: select text in a card's answer, ask about it ----------
+  // Reuses injectTarget/setInject for the nesting — a quoted question lands as a
+  // linked child of the card it was selected from, same as "Ask a follow-up".
+  var pendingQuote = null;
+  var quotePop = document.getElementById('quotePop');
+  var quotePopBtn = document.getElementById('quotePopBtn');
+  var quoteChip = document.getElementById('quoteChip');
+  var quoteChipText = document.getElementById('quoteChipText');
+  var quoteChipX = document.getElementById('quoteChipX');
+
+  function hideQuotePop() { quotePop.classList.remove('show'); }
+
+  function clearQuote() {
+    pendingQuote = null;
+    quoteChip.classList.remove('show');
+    quoteChipText.textContent = '';
+  }
+
+  function showQuoteChip(text) {
+    pendingQuote = text;
+    var shown = text.length > 220 ? text.slice(0, 220).trim() + '…' : text;
+    quoteChipText.textContent = shown;
+    quoteChip.classList.add('show');
+  }
+
+  document.addEventListener('mouseup', function (e) {
+    if (composer.contains(e.target) || quotePop.contains(e.target)) return;
+    // selection isn't finalized until after mouseup — check on the next tick
+    setTimeout(function () {
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { hideQuotePop(); return; }
+      var text = sel.toString().trim();
+      if (!text) { hideQuotePop(); return; }
+      var anchorNode = sel.anchorNode;
+      var el = anchorNode && (anchorNode.nodeType === 1 ? anchorNode : anchorNode.parentElement);
+      var cardEl = el && el.closest && el.closest('.card');
+      var card = cardEl && byId(Number(cardEl.dataset.id));
+      if (!card) { hideQuotePop(); return; }
+      var rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (!rect || (!rect.width && !rect.height)) { hideQuotePop(); return; }
+      quotePop.style.left = Math.round(rect.left + rect.width / 2) + 'px';
+      quotePop.style.top = Math.round(rect.top - 8) + 'px';
+      quotePop.dataset.text = text;
+      quotePop.dataset.cardId = card.id;
+      quotePop.classList.add('show');
+    }, 0);
+  });
+
+  document.addEventListener('mousedown', function (e) {
+    if (quotePop.contains(e.target)) return;
+    hideQuotePop();
+  });
+
+  // a fresh selection, scroll, or canvas pan/zoom all invalidate the popover's position
+  document.addEventListener('scroll', hideQuotePop, true);
+  window.addEventListener('resize', hideQuotePop);
+
+  quotePopBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var text = quotePop.dataset.text || '';
+    var card = byId(Number(quotePop.dataset.cardId));
+    hideQuotePop();
+    if (!text || !card) return;
+    if (window.getSelection) window.getSelection().removeAllRanges();
+    setInject(card);
+    showQuoteChip(text);
+  });
+
+  quoteChipX.addEventListener('click', function () { setInject(null); });
+
+  // ---------- composer: grows with content, Shift+Enter for a newline ----------
+  var COMPOSER_MAX_H = 200;
+  function autoGrowInput() {
+    input.style.height = 'auto';
+    var h = Math.min(input.scrollHeight, COMPOSER_MAX_H);
+    input.style.height = h + 'px';
+    composer.classList.toggle('tall', input.scrollHeight > 40);
+  }
+  input.addEventListener('input', autoGrowInput);
+
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && injectTarget) { setInject(null); return; }
-    if (e.key !== 'Enter' || !input.value.trim() || UI.busy) return;
+    if (e.key !== 'Enter' || e.shiftKey) return;   // Shift+Enter: newline, like any real editor
+    e.preventDefault();
+    if (!input.value.trim() || UI.busy) return;
     var text = input.value.trim();
+    if (pendingQuote) {
+      text = 'Re: "' + pendingQuote + '"\n\n' + text;
+    }
     input.value = '';
+    autoGrowInput();
     ask(text);
   });
 
@@ -2242,6 +2559,13 @@
   document.getElementById('mark').addEventListener('click', function () {
     if (document.body.classList.contains('rail')) toggleRail();
   });
+  // mobile: the sidebar is off-canvas by default at this width (see the
+  // mobile media query), so it needs its own always-reachable opener —
+  // #collapse lives inside #side, which is invisible until opened.
+  document.getElementById('mobileMenuBtn').addEventListener('click', toggleRail);
+  document.getElementById('sideScrim').addEventListener('click', function () {
+    if (document.body.classList.contains('rail')) toggleRail();
+  });
   function toggleRail() {
     document.body.classList.toggle('rail');
     var t0 = performance.now();
@@ -2389,12 +2713,51 @@
   var dictate = document.getElementById('dictate');
   var dictRec = null, dictChunks = [], dictStream = null;
   var dictTimer = null, dictStartTs = 0;
+  // Live caption while recording, purely so it's obvious the mic is
+  // actually hearing you — NOT what gets submitted. The real transcript
+  // still comes from the more accurate Whisper pass in onDictStop below,
+  // same as before. Browser speech recognition is inconsistent across
+  // browsers (Chrome: good; Safari: partial; Firefox: none), so this is a
+  // progressive enhancement — no live caption support just means you see
+  // the plain timer, exactly like before.
+  var dictSpeechRec = null, dictLiveText = '';
   function dictTick() {
     var secs = Math.floor((Date.now() - dictStartTs) / 1000);
     var mm = Math.floor(secs / 60), ss = secs % 60;
-    setStatus('Recording ' + mm + ':' + (ss < 10 ? '0' : '') + ss + ' — tap the mic to stop', 'listening');
+    var clock = mm + ':' + (ss < 10 ? '0' : '') + ss;
+    if (dictLiveText) {
+      var shown = dictLiveText.length > 70 ? '…' + dictLiveText.slice(-70) : dictLiveText;
+      setStatus('"' + shown + '" — ' + clock + ' — tap the mic to stop', 'listening');
+    } else {
+      setStatus('Recording ' + clock + ' — tap the mic to stop', 'listening');
+    }
   }
   function stopDictTimer() { if (dictTimer) { clearInterval(dictTimer); dictTimer = null; } }
+  function startDictCaption() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;   // no live caption in this browser — timer-only, as before
+    try {
+      dictSpeechRec = new SR();
+      dictSpeechRec.continuous = true;
+      dictSpeechRec.interimResults = true;
+      dictSpeechRec.lang = navigator.language || 'en-US';
+      dictSpeechRec.onresult = function (e) {
+        var t = '';
+        for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        dictLiveText = t.trim();
+      };
+      dictSpeechRec.onerror = function () {};   // cosmetic only — never surfaces as a real error
+      dictSpeechRec.onend = function () {
+        // some browsers auto-stop after a pause mid-recording; keep it running
+        if (dictRec && dictRec.state === 'recording') { try { dictSpeechRec.start(); } catch (e) {} }
+      };
+      dictSpeechRec.start();
+    } catch (e) { dictSpeechRec = null; }
+  }
+  function stopDictCaption() {
+    if (dictSpeechRec) { try { dictSpeechRec.onend = null; dictSpeechRec.stop(); } catch (e) {} dictSpeechRec = null; }
+    dictLiveText = '';
+  }
 
   dictate.addEventListener('click', function () {
     if (dictRec && dictRec.state === 'recording') stopDictation();
@@ -2423,6 +2786,7 @@
       dictRec.start();
       dictate.classList.add('rec');
       dictStartTs = Date.now();
+      startDictCaption();
       dictTick();
       dictTimer = setInterval(dictTick, 500);
     } catch (err) {
@@ -2434,6 +2798,7 @@
   function stopDictation() {
     if (dictRec && dictRec.state !== 'inactive') {
       stopDictTimer();
+      stopDictCaption();
       dictate.classList.remove('rec');
       dictate.classList.add('busy');
       setStatus('Processing — transcribing what you said…', 'thinking');
@@ -2457,6 +2822,7 @@
       dictate.classList.remove('busy');
       if (text) {
         input.value = (input.value ? input.value.trim() + ' ' : '') + text;
+        autoGrowInput();
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
         flashStatus('Transcribed — edit, then press Enter to send', '', 2600);
@@ -2472,6 +2838,7 @@
   }
   function cleanupDict() {
     stopDictTimer();
+    stopDictCaption();
     dictate.classList.remove('rec', 'busy');
     if (dictStream) { dictStream.getTracks().forEach(function (t) { t.stop(); }); dictStream = null; }
     dictRec = null;
@@ -2489,6 +2856,7 @@
     orbState = state;
     orb.className = state ? state : '';
     orb.classList.toggle('live', !!live);
+    orb.setAttribute('data-t', live ? 'End Live Voice' : 'Start Live Voice');
   }
 
   orb.addEventListener('click', function () { if (live) stopLive('Ended.'); else startLive(); });
