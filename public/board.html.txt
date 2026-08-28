@@ -1,0 +1,3088 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>board</title>
+
+<!--
+  BOARD — v3
+  1. ATOM       One card = one exchange. Question + answer, one number, born at commit.
+  2. PLACEMENT  N+1 lands right of N. Occupied -> nearest free space. Never pushes.
+  3. STEERING   "Right of N" is relative to where N is. Drag it and the conversation follows.
+  4. CAMERA     Cards never move. Camera moves only if the card lands off-screen
+                and you aren't mid-drag.
+  5. COMPOSER   Bottom-center of the board. Always.
+  6. IN-FLIGHT  Screen space, occludes. Question pins top, answer grows beneath,
+                view follows the writing edge. Commits as one card; you watch it fly.
+  7. NUMBERS    Flat integers. Immutable. Gappy. Quiet. Per board.
+  8. LINEAR     A lens. Node positions are never overwritten.
+  9. NO OVERLAP One rule for placement and for drops: nearest free space.
+  10. SIDEBAR   Each Recent is a board — its own cards, numbers, and camera.
+                Board names come from YOUR first question, never a summary.
+
+  RESPOND() at the bottom is the seam.
+-->
+
+<style>
+  :root {
+    /* light theme: soft grey canvas, cards as gently-tinted floating panels
+       separated mostly by shadow rather than hard borders, grey "frame"
+       boxes with black text. no blue/purple — accent reads as dark grey/black. */
+    --bg: #eae9e7;
+    --card: #fbfbfa;
+    --card-hi: #f5f5f3;
+    --q-bg: #ececea;
+    --edge: rgba(20,20,15,.09);
+    --edge-soft: rgba(20,20,15,.05);
+    --ink: #17171a;
+    --ink-dim: #55565c;
+    --ink-faint: #94949a;
+    --chrome-bg: #fbfbfa;
+    --side: #eae9e7;   /* same grey as the canvas — no distinct white panel */
+    --live: #fbfbfa;
+    /* neutral dark grey stands in for what used to be an accent purple —
+       no blue/purple anywhere in the design now, selection/emphasis reads
+       through darkness and weight instead of hue. */
+    --accent: #2f2f33;
+    --accent-hi: #1c1c1f;
+    --shadow-card: 0 1px 2px rgba(20,20,15,.045), 0 6px 16px rgba(20,20,15,.05);
+    --shadow-pop: 0 10px 30px rgba(20,20,15,.09), 0 2px 8px rgba(20,20,15,.05);
+    --r: 14px;
+    --sw: 258px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  svg { display: block; }
+
+  /* ================= sidebar ================= */
+  #side {
+    position: fixed; left: 0; top: 0; bottom: 0; width: var(--sw);
+    background: var(--side); border-right: 1px solid var(--edge);
+    display: flex; flex-direction: column; z-index: 400;
+    transition: width .22s cubic-bezier(.3,.7,.25,1);
+    overflow: hidden;
+  }
+  body.rail #side { width: 58px; }
+
+  #brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 12px 10px 14px; flex: none;
+  }
+  #mark {
+    width: 26px; height: 26px; border-radius: 7px; flex: none;
+    border: 1px solid var(--edge-soft);
+    display: grid; place-items: center;
+    background: var(--card);
+  }
+  #brandname {
+    font-size: 14px; font-weight: 600; letter-spacing: -.01em;
+    white-space: nowrap; flex: 1;
+  }
+  .railhide { transition: opacity .14s; }
+  body.rail .railhide { opacity: 0; pointer-events: none; }
+
+  .nav { padding: 4px 8px; flex: none; }
+  .item {
+    display: flex; align-items: center; gap: 11px;
+    height: 38px; padding: 0 10px; border-radius: 9px;
+    color: var(--ink-dim); cursor: pointer; user-select: none;
+    font-size: 14px; white-space: nowrap;
+  }
+  .item:hover { background: #e4e4e1; color: var(--ink); }
+  .item.on { background: #dedede; color: var(--ink); }
+  .item .ico { flex: none; width: 18px; height: 18px; display: grid; place-items: center; }
+  .item .lbl { overflow: hidden; }
+
+  #recents {
+    flex: 1; overflow-y: auto; padding: 6px 8px 8px;
+    border-top: 1px solid var(--edge); margin-top: 6px; min-height: 0;
+  }
+  body.rail #recents { visibility: hidden; }
+  .eyebrow {
+    font-size: 11px; color: var(--ink-faint); letter-spacing: .06em;
+    text-transform: uppercase; padding: 8px 10px 6px; white-space: nowrap;
+  }
+  .rec {
+    display: flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 6px 0 10px; border-radius: 8px;
+    color: var(--ink-dim); cursor: pointer; user-select: none;
+    font-size: 13.5px;
+  }
+  .rec:hover { background: #e4e4e1; color: var(--ink); }
+  .rec.on { background: #dedede; color: var(--ink); }
+  .rec .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rec .pin, .rec .del2 {
+    flex: none; width: 22px; height: 22px; border-radius: 5px;
+    display: none; place-items: center; color: var(--ink-faint);
+  }
+  .rec:hover .pin, .rec:hover .del2 { display: grid; }
+  .rec .pin:hover { background: #d6d6d3; color: var(--ink); }
+  .rec .del2:hover { background: #fbe4e2; color: #c23b34; }
+  .rec.pinned .pin { display: grid; color: var(--accent-hi); }
+
+  #who {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    padding: 10px 10px 12px 14px; border-top: 1px solid var(--edge);
+  }
+  #avatar {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    background: radial-gradient(circle at 35% 30%, #cfe97a, #8fbf3f);
+  }
+  #whoname { flex: 1; font-size: 13.5px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; }
+  .iconbtn {
+    width: 28px; height: 28px; border-radius: 7px; flex: none;
+    display: grid; place-items: center; color: var(--ink-faint); cursor: pointer;
+  }
+  .iconbtn:hover { background: #dedede; color: var(--ink); }
+
+  /* ================= board ================= */
+  #stage {
+    position: fixed; top: 0; right: 0; bottom: 0; left: var(--sw);
+    overflow: hidden; cursor: grab; touch-action: none;
+    transition: left .22s cubic-bezier(.3,.7,.25,1);
+  }
+  body.rail #stage { left: 58px; }
+  #stage.panning { cursor: grabbing; }
+  #dots { position: absolute; inset: 0; pointer-events: none; }
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+  #thread { position: absolute; overflow: visible; pointer-events: none; left: 0; top: 0; }
+
+  /* ---------- links between cards (node only) ---------- */
+  #links { position: absolute; overflow: visible; pointer-events: none; left: 0; top: 0; }
+  body.linear #links, body.linear .lh { display: none; }
+  #links path { fill: none; stroke: #8c8c96; stroke-width: 1.6; }
+  #links path.sel { stroke: var(--accent); stroke-width: 2.2; }
+  #links .hit { stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+  #links .llabel {
+    fill: var(--ink); font-size: 12.5px; paint-order: stroke;
+    stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round;
+    text-anchor: middle; dominant-baseline: middle; cursor: pointer; pointer-events: auto;
+  }
+  /* the four connect handles around a card */
+  .lh {
+    position: absolute; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--card); border: 1.6px solid #8c8c96;
+    opacity: 0; transition: opacity .12s, transform .12s, background .12s;
+    cursor: crosshair; z-index: 40;
+  }
+  .card:hover .lh { opacity: 1; }
+  .lh:hover { background: var(--accent-hi); border-color: var(--accent-hi); transform: scale(1.25); }
+  .lh.t { top: -8px;  left: 50%; margin-left: -7.5px; }
+  .lh.b { bottom: -8px; left: 50%; margin-left: -7.5px; }
+  .lh.l { left: -8px; top: 50%; margin-top: -7.5px; }
+  .lh.r { right: -8px; top: 50%; margin-top: -7.5px; }
+  .card.mini .lh { display: none; }
+  /* label editor */
+  #linkedit {
+    position: fixed; z-index: 500; display: none;
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 10px;
+    padding: 8px; box-shadow: var(--shadow-pop); width: 250px;
+  }
+  #linkedit.open { display: block; }
+  #linkedit input {
+    width: 100%; background: var(--q-bg); border: 0;
+    border-radius: 7px; color: var(--ink); font: inherit; font-size: 15.5px;
+    padding: 8px 10px; outline: none; box-sizing: border-box;
+  }
+  #linkedit .row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  #linkedit .ctx { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-dim); cursor: pointer; }
+  #linkedit .ctx input { width: auto; }
+  #linkedit .del { background: none; border: 0; color: #c23b34; font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  #linkedit .del:hover { background: #fbe4e2; }
+  /* linear: links become a text reference under the exchange */
+  .linkref {
+    display: none; font-size: 12.5px; color: var(--ink-faint);
+    margin: 2px 0 0; padding: 0 2px;
+  }
+  body.linear .card .linkref { display: block; }
+  body.linear .card.mini .linkref { display: block; }
+
+  /* ---------- card ---------- */
+  /* a soft floating panel — shadow does the separation from the canvas,
+     not a hard-drawn border, so it doesn't read as a stark white box */
+  .card {
+    position: absolute; width: 560px;
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: var(--r); padding: 34px 16px 10px;
+    box-shadow: var(--shadow-card);
+    cursor: grab; user-select: none;
+    transition: box-shadow .15s, border-color .15s, background .15s;
+  }
+  .card:hover { background: var(--card-hi); }
+  .card.grabbed { cursor: grabbing; box-shadow: 0 18px 40px rgba(20,20,15,.14); border-color: #b3b3af; z-index: 50; }
+  .card.blocked { border-color: #c9615f; box-shadow: 0 18px 40px rgba(20,20,15,.14), 0 0 0 1px #c9615f; }
+  /* "last card" used to get a dark border — read as an unwanted black frame.
+     a slightly stronger shadow is enough of a marker on its own. */
+  .card.is-last { box-shadow: 0 2px 4px rgba(20,20,15,.06), 0 10px 22px rgba(20,20,15,.08); }
+
+  /* resize: you own the size too, not just the position */
+  .card .grip {
+    position: absolute; right: 0; bottom: 0; width: 18px; height: 18px;
+    cursor: nwse-resize; opacity: 0; transition: opacity .12s;
+  }
+  .card .grip::after {
+    content: ''; position: absolute; right: 4px; bottom: 4px;
+    width: 8px; height: 8px;
+    border-right: 1.5px solid var(--ink-faint); border-bottom: 1.5px solid var(--ink-faint);
+    border-bottom-right-radius: 3px;
+  }
+  .card:hover .grip { opacity: 1; }
+  .card.mini .grip { display: none; }
+
+  .card .n {
+    position: absolute; top: 13px; right: 13px;
+    font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+  .card .min {
+    position: absolute; top: 8px; left: 10px;
+    width: 26px; height: 26px; border-radius: 7px;
+    display: grid; place-items: center;
+    color: var(--ink-dim); cursor: pointer; font-size: 18px; line-height: 1;
+  }
+  .card .min:hover { background: #dedede; color: var(--ink); }
+
+  .card .q {
+    background: var(--q-bg); border-radius: 9px;
+    padding: 8px 11px; font-size: 13.5px; color: var(--ink);
+    white-space: pre-wrap; word-break: break-word; margin-bottom: 11px;
+    max-height: 84px; overflow: hidden;
+  }
+  .card .a {
+    white-space: pre-wrap; word-break: break-word; padding: 0 4px;
+    overflow: hidden;
+    user-select: text; cursor: text;   /* selectable so you can quote it back into a question */
+  }
+  .card.clipped .a {
+    -webkit-mask-image: linear-gradient(#000 72%, transparent);
+    mask-image: linear-gradient(#000 72%, transparent);
+  }
+  .card .more {
+    display: none; margin: 8px 0 0 4px; font-size: 12px;
+    color: var(--ink-dim); cursor: pointer; user-select: none;
+  }
+  .card.clipped .more { display: inline-block; }
+  .card .more:hover { color: var(--ink); }
+
+  .card.mini { padding: 0 34px 0 30px; height: 36px; display: flex; align-items: center; }
+  .card.mini .q, .card.mini .a, .card.mini .more { display: none; }
+
+  /* ---------- per-exchange actions ---------- */
+  .acts { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+  .card:hover .acts { opacity: 1; }
+  .qacts { justify-content: flex-end; margin: 2px 0 0; }
+  .aacts { justify-content: flex-start; margin: 2px 0 0; }
+  .card.mini .acts { display: none; }
+  .acts button {
+    position: relative; background: none; border: 0; padding: 3px;
+    border-radius: 6px; color: var(--ink-dim); cursor: pointer;
+    display: flex; align-items: center; font: inherit;
+  }
+  .acts button:hover { background: #ececea; color: var(--ink); }
+  .acts button::after {
+    content: attr(data-t); position: absolute; top: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%); background: #202024; border: 1px solid #2c2c30;
+    color: #f2f2f0; font-size: 11px; padding: 3px 7px; border-radius: 5px;
+    white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .1s;
+    z-index: 5;
+  }
+  .acts button:hover::after { opacity: 1; }
+  #amenu {
+    position: fixed; z-index: 400; display: none; width: 186px;
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 11px;
+    padding: 6px; box-shadow: var(--shadow-pop);
+  }
+  #amenu.open { display: block; }
+  #amenu .mi {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 7px;
+    font-size: 13px; color: var(--ink-dim); cursor: pointer;
+  }
+  #amenu .mi:hover { background: #ececea; color: var(--ink); }
+  .card .bar { display: none; }
+  .card.mini .bar {
+    display: block; font-size: 13px; color: var(--ink-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  }
+  .card .peek {
+    display: none; position: absolute; left: 0; top: calc(100% + 6px); width: 100%;
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 10px;
+    padding: 12px 14px; font-size: 13px; color: var(--ink); white-space: pre-wrap;
+    box-shadow: var(--shadow-pop); z-index: 60; max-height: 280px; overflow: auto;
+  }
+  .card.mini:hover .peek { display: block; }
+  .card .peek .pq { color: var(--ink-dim); margin-bottom: 8px; }
+
+  /* ================= linear: a conversation, not cards ================= */
+  body.linear .card:not(.probe) {
+    background: none !important; border: 0; border-radius: 0;
+    padding: 0 0 8px; box-shadow: none; cursor: default;
+  }
+  body.linear .card .min,
+  body.linear .card .more,
+  body.linear .card .peek,
+  body.linear .card .grip,
+  body.linear .card .bar { display: none !important; }
+  body.linear .card .n {
+    top: auto; bottom: 12px; right: auto; left: 0;
+    opacity: 0; transition: opacity .12s;
+  }
+  body.linear .card:hover .n { opacity: 1; }
+  body.linear .card .q {
+    max-width: 66%; width: fit-content; margin: 0 0 14px auto;
+    max-height: none !important; overflow: visible;
+    background: var(--q-bg); border: 0; border-radius: 26px;
+    padding: 14px 20px; font-size: 15.5px; line-height: 1.55; color: var(--ink);
+  }
+  body.linear .card .a {
+    max-height: none !important; overflow: visible; padding: 0 2px;
+    font-size: 15.5px; line-height: 1.75;
+  }
+  body.linear .card.clipped .a { -webkit-mask-image: none; mask-image: none; }
+  /* minimize is a board affordance. a chat shows the whole exchange. */
+  body.linear .card.mini {
+    height: auto !important; display: block !important;
+    padding: 0 0 8px !important;
+  }
+  body.linear .card.mini .q, body.linear .card.mini .a { display: block !important; }
+
+  /* ---------- chrome inside the board ---------- */
+  /* node/linear toggle: deliberately a dark pill regardless of theme — a
+     white thumb slides under whichever side is selected; the label sitting
+     on the thumb goes dark, the other stays white-on-black. */
+  #bar {
+    position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 200; display: flex; gap: 0;
+    background: #17171a; border: 1px solid #17171a;
+    border-radius: 999px; padding: 4px;
+  }
+  #barThumb {
+    position: absolute; top: 4px; left: 4px; height: calc(100% - 8px); width: 64px;
+    background: #ffffff; border-radius: 999px; z-index: 0;
+    transition: transform .22s cubic-bezier(.3,.7,.25,1), width .22s cubic-bezier(.3,.7,.25,1);
+  }
+  #bar button {
+    position: relative; z-index: 1; min-width: 64px; text-align: center;
+    background: none; border: 0; color: #ffffff;
+    font: inherit; font-size: 13px; padding: 5px 16px;
+    border-radius: 999px; cursor: pointer; transition: color .18s;
+  }
+  #bar button.on { color: #17171a; }
+
+  /* injection target — the card a follow-up will nest under */
+  body.injecting .card.inject-target { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(23,23,26,.22); }
+  body.linear.injecting .card.inject-target { box-shadow: none; outline: 2px solid rgba(23,23,26,.22); outline-offset: 4px; }
+
+  /* ---------- share + board menu ---------- */
+  #share {
+    position: absolute; top: 18px; right: 18px; z-index: 200;
+    display: flex; gap: 6px; align-items: center;
+  }
+  #share button {
+    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    color: var(--ink-dim); font: inherit; font-size: 13px;
+    padding: 6px 13px; border-radius: 999px; cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    box-shadow: var(--shadow-card);
+  }
+  #share button:hover { color: var(--ink); }
+  #dots3 { padding: 6px 10px; letter-spacing: 1px; }
+  #menu {
+    position: absolute; top: 42px; right: 0; display: none; width: 194px;
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 11px;
+    padding: 6px; box-shadow: var(--shadow-pop);
+  }
+  #menu.open { display: block; }
+  #menu .mi {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 7px;
+    font-size: 13px; color: var(--ink-dim); cursor: pointer;
+  }
+  #menu .mi:hover { background: #ececea; color: var(--ink); }
+  #menu .mi.danger:hover { background: #17171a; color: #ffffff; }
+  #menu .sep { height: 1px; background: var(--edge); margin: 5px 8px; }
+
+  /* ---------- linear: jump between questions ---------- */
+  #rail {
+    position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+    z-index: 150; display: none; flex-direction: column;
+    align-items: flex-end; gap: 8px;
+  }
+  body.linear #rail { display: flex; }
+  #rail .rl {
+    width: 18px; height: 2px; border-radius: 1px; background: #cdcdca;
+    cursor: pointer; transition: background .12s, width .12s;
+  }
+  #rail .rl:hover { background: #9a9a96; width: 26px; }
+  #rail .rl.on { background: var(--ink-dim); width: 26px; }
+
+  /* grows with content, Claude/ChatGPT-style, instead of staying a fixed
+     52px pill — a longer, organized draft (line breaks, a pasted list)
+     needs room to actually be readable before you send it. */
+  #composer {
+    position: absolute; z-index: 200;
+    left: 50%; transform: translateX(-50%); bottom: 26px;
+    width: min(768px, calc(100% - 48px));
+    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    border-radius: 26px; box-shadow: var(--shadow-card);
+    display: flex; flex-direction: column;
+    transition: border-radius .15s;
+  }
+  #composer.tall { border-radius: 20px; }
+  #composerRow {
+    display: flex; align-items: flex-end; gap: 10px; min-height: 52px;
+    box-sizing: border-box; padding: 9px 7px 9px 20px;
+  }
+  /* "referencing this selection" chip — shown when a question is about to
+     quote a snippet selected from a card's answer (see #quotePop below). */
+  #quoteChip {
+    display: none; align-items: flex-start; gap: 8px;
+    margin: 12px 16px 0 20px; padding: 8px 10px;
+    background: var(--q-bg); border-radius: 10px;
+    font-size: 12.5px; color: var(--ink-dim); line-height: 1.4;
+  }
+  #quoteChip.show { display: flex; }
+  #quoteChip svg { flex: none; margin-top: 2px; color: var(--ink-faint); }
+  #quoteChip span { flex: 1; white-space: pre-wrap; word-break: break-word; }
+  #quoteChip button {
+    flex: none; background: none; border: 0; color: var(--ink-faint);
+    cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
+  }
+  #quoteChip button:hover { color: var(--ink); }
+
+  /* the floating "Ask about this" button that appears near a text
+     selection made inside a card's answer. */
+  #quotePop { display: none; position: fixed; z-index: 250; transform: translate(-50%, -100%); }
+  #quotePop.show { display: block; }
+  #quotePop button {
+    background: #17171a; color: #fff; border: 0; font: inherit; font-size: 12.5px;
+    padding: 7px 14px 7px 12px; border-radius: 999px; cursor: pointer;
+    box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  #quotePop button:hover { background: #000; }
+
+  #composerRow textarea {
+    flex: 1; background: none; border: 0; outline: none; resize: none;
+    color: var(--ink); font: inherit; padding: 5px 0; margin: 0;
+    line-height: 1.45; max-height: 200px; overflow-y: auto;
+  }
+  #composer textarea::placeholder { color: var(--ink-faint); }
+  #dictate, #attach, #orb { position: relative; }
+  #dictate, #attach {
+    width: 34px; height: 34px; border-radius: 50%; flex: none; cursor: pointer;
+    display: grid; place-items: center; color: var(--ink-dim);
+    background: none; border: 1px solid var(--edge); margin-bottom: 2px;
+    transition: color .15s, border-color .15s, background .15s, transform .1s;
+  }
+  #dictate svg, #attach svg { width: 16px; height: 16px; }
+  #dictate:hover, #attach:hover { color: var(--ink); border-color: #b5b5b1; background: #ececea; }
+  #dictate:active, #attach:active { transform: scale(.9); background: #dedede; }
+  #orb:active { transform: scale(.92); }
+  #dictate.rec { color: #fff; background: #d2483f; border-color: #d2483f; animation: breathe 1.4s ease-in-out infinite; }
+  #dictate.busy { color: var(--ink-dim); border-color: var(--edge); animation: breathe 1s ease-in-out infinite; }
+
+  /* dark pill tooltip above each composer icon — same language as the
+     per-card action-button tooltips, so hovering any icon in the app
+     explains itself the same way. native title="" attributes are too easy
+     to miss (slow to appear, plain OS styling); this is instant and
+     consistent with the rest of the design. */
+  #attach[data-t]::after, #dictate[data-t]::after, #orb[data-t]::after {
+    content: attr(data-t); position: absolute; bottom: calc(100% + 10px);
+    left: 50%; transform: translateX(-50%);
+    background: #202024; border: 1px solid #2c2c30; color: #f2f2f0;
+    font-size: 11px; padding: 4px 8px; border-radius: 5px;
+    white-space: nowrap; opacity: 0; pointer-events: none;
+    transition: opacity .12s; z-index: 210;
+  }
+  #attach:hover::after, #dictate:hover::after, #orb:hover::after { opacity: 1; }
+
+  /* voice status line, above the composer. not part of the canvas. */
+  #vstatus {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 88px; z-index: 160; display: none;
+    font-size: 13.5px; font-weight: 500; color: var(--ink-dim);
+    background: #fbfbfae6; border: 1px solid var(--edge-soft);
+    padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+    backdrop-filter: blur(6px); box-shadow: var(--shadow-card);
+  }
+  #vstatus.show { display: block; }
+  #vstatus.err { color: #b23b34; border-color: #e3b3af; background: #fdecebe6; }
+  #vstatus .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 8px; vertical-align: middle; background: var(--ink-dim);
+  }
+  #vstatus.listening { color: #1f7a44; border-color: #bfe3cc; background: #eaf7eee6; }
+  #vstatus.listening .dot { background: #38b566; animation: breathe 1.2s ease-in-out infinite; }
+  #vstatus.thinking { color: #8a6a12; border-color: #e8d9ae; background: #fbf3e1e6; }
+  #vstatus.thinking .dot  { background: #c99a2e; animation: breathe .9s ease-in-out infinite; }
+  #vstatus.speaking { color: #17171a; border-color: #c7c7c3; background: #ececeae6; }
+  #vstatus.speaking .dot  { background: #17171a; animation: breathe 1.1s ease-in-out infinite; }
+  #vstatus.connecting .dot{ background: #9a9a96; animation: breathe .8s ease-in-out infinite; }
+
+  /* "read out loud" playback — a persistent, always-visible stop control
+     while a card is being read. Not the ••• menu: needing to reopen a
+     hidden per-card dropdown mid-playback just to stop it isn't a real
+     way to stop it. */
+  #ttsBar {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 132px; z-index: 160; display: none;
+    align-items: center; gap: 10px;
+    font-size: 13.5px; font-weight: 500; color: var(--ink);
+    background: #fbfbfae6; border: 1px solid var(--edge-soft);
+    padding: 6px 8px 6px 16px; border-radius: 999px; white-space: nowrap;
+    backdrop-filter: blur(6px); box-shadow: var(--shadow-card);
+  }
+  #ttsBar.show { display: flex; }
+  #ttsBar .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #17171a; animation: breathe 1.1s ease-in-out infinite;
+  }
+  #ttsBar button {
+    background: #17171a; color: #fff; border: 0; font: inherit; font-size: 12.5px;
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #ttsBar button:hover { background: #000; }
+
+  /* orb state tints (Mode 2). flat charcoal — matching the node/linear
+     toggle's flat black — no gradient/glossy sphere, no blue/purple. the
+     icon itself is a small audio-waveform glyph so it reads as "voice"
+     rather than an abstract dot. */
+  #orb.connecting { animation: breathe .8s ease-in-out infinite; }
+  #orb.listening  { box-shadow: 0 0 0 3px #38b56655; animation: breathe 1.2s ease-in-out infinite; }
+  #orb.thinking   { box-shadow: 0 0 0 3px #c99a2e55; animation: breathe .9s ease-in-out infinite; }
+  #orb.speaking   { box-shadow: 0 0 0 3px rgba(23,23,26,.35); animation: breathe 1.1s ease-in-out infinite; }
+  #orb.err        { box-shadow: 0 0 0 3px #d2483f77; }
+  #orb {
+    width: 40px; height: 40px; border-radius: 50%; flex: none; cursor: pointer;
+    display: grid; place-items: center; color: #ffffff;
+    background: #17171a;
+    opacity: .9; transform: scale(1); transition: opacity .25s, transform .25s, background .15s;
+  }
+  #orb:hover { opacity: 1; background: #000; }
+  #orb svg { width: 17px; height: 17px; pointer-events: none; }
+  #orb.live { opacity: 1; transform: scale(1); animation: breathe 1.9s ease-in-out infinite; }
+  #orb.live svg { display: none; }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+  #flight {
+    position: absolute; z-index: 150; width: 768px;
+    background: var(--live); border: 1px solid var(--edge-soft);
+    border-radius: var(--r); padding: 14px;
+    box-shadow: var(--shadow-pop);
+    display: none; transform-origin: 0 0; max-height: 62vh; overflow: hidden;
+  }
+  #flight.flying { transition: transform .4s cubic-bezier(.3,.7,.25,1), opacity .4s; }
+  /* linear: part of the conversation, not floating over it */
+  #flight.inline {
+    width: 768px; background: none; border: 0; box-shadow: none; padding: 0;
+    max-height: none; overflow: visible;
+  }
+  #flight.inline #fq {
+    max-width: 66%; width: fit-content; margin: 0 0 14px auto;
+    background: var(--q-bg); border: 0; border-radius: 26px;
+    padding: 14px 20px; font-size: 15.5px; line-height: 1.55; color: var(--ink);
+  }
+  #flight.inline #fa {
+    max-height: none; overflow: visible; padding: 0 2px;
+    font-size: 15.5px; line-height: 1.75;
+  }
+  #fq {
+    background: var(--q-bg); border-radius: 9px;
+    padding: 9px 12px; font-size: 13.5px; color: var(--ink);
+    white-space: pre-wrap; word-break: break-word; margin-bottom: 12px;
+  }
+  #fa {
+    white-space: pre-wrap; word-break: break-word; padding: 0 4px;
+    max-height: calc(62vh - 80px); overflow-y: auto; scrollbar-width: thin;
+  }
+  #fa::-webkit-scrollbar { width: 4px; }
+  #fa::-webkit-scrollbar-thumb { background: #cdcdca; border-radius: 2px; }
+  #fa::after {
+    content: ''; display: inline-block; width: 7px; height: 15px; margin-left: 2px;
+    background: var(--accent); vertical-align: -2px; animation: blink 1s steps(2) infinite; opacity: .9;
+  }
+  #flight.done #fa::after { display: none; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* grouped into one pill (same language as the node/linear toggle) instead
+     of three loose chips, so it reads as one control, not stray buttons */
+  #util {
+    position: absolute; left: 18px; bottom: 18px; z-index: 200;
+    display: flex; align-items: center; gap: 2px;
+    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    border-radius: 999px; padding: 4px; box-shadow: var(--shadow-card);
+    font-size: 12px; color: var(--ink-faint);
+  }
+  #util button {
+    background: none; border: 0;
+    color: var(--ink-dim); font: inherit; font-size: 12px;
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  }
+  #util button:hover { background: #ececea; color: var(--ink); }
+  #util button.on { background: #17171a; color: #ffffff; }
+  #zoom { font-variant-numeric: tabular-nums; min-width: 40px; padding: 6px 8px; text-align: center; cursor: default; }
+
+  #empty {
+    position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%);
+    color: var(--ink-faint); font-size: 14px; z-index: 5; pointer-events: none;
+    text-align: center;
+  }
+
+  /* ---------- reader ---------- */
+  #reader {
+    position: fixed; z-index: 500; display: none;
+    left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: min(680px, calc(100vw - 48px)); max-height: 76vh;
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 16px; padding: 22px 24px; overflow-y: auto;
+    box-shadow: var(--shadow-pop);
+  }
+  #reader .rq {
+    background: var(--q-bg); border-radius: 9px;
+    padding: 10px 13px; font-size: 13.5px; color: var(--ink);
+    white-space: pre-wrap; margin-bottom: 16px;
+  }
+  #reader .ra { white-space: pre-wrap; }
+  #reader .rn {
+    position: absolute; top: 12px; right: 16px;
+    font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+  #scrim { position: fixed; inset: 0; z-index: 490; background: rgba(0,0,0,.35); display: none; }
+
+  /* ---------- in-app confirm dialog (replaces window.confirm) ---------- */
+  #confirmModal {
+    position: fixed; z-index: 510; display: none;
+    left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: min(360px, calc(100vw - 48px));
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 14px; padding: 20px; box-shadow: var(--shadow-pop);
+  }
+  #confirmModal .cm-msg { font-size: 14px; line-height: 1.5; color: var(--ink); margin-bottom: 18px; }
+  #confirmModal .cm-row { display: flex; justify-content: flex-end; gap: 8px; }
+  #confirmModal button {
+    font: inherit; font-size: 13px; padding: 8px 16px; border-radius: 999px;
+    cursor: pointer; border: 1px solid var(--edge-soft);
+  }
+  #confirmModal .cm-cancel { background: none; color: var(--ink-dim); }
+  #confirmModal .cm-cancel:hover { background: #ececea; color: var(--ink); }
+  #confirmModal .cm-ok { background: #17171a; color: #ffffff; border-color: #17171a; }
+  #confirmModal .cm-ok:hover { background: #000000; }
+
+  /* ---------- search ---------- */
+  #searchModal {
+    position: fixed; z-index: 510; display: none;
+    left: 50%; top: 18%; transform: translateX(-50%);
+    width: min(560px, calc(100vw - 48px)); max-height: 60vh;
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 14px; padding: 10px; box-shadow: var(--shadow-pop);
+    display: none; flex-direction: column;
+  }
+  #searchModal.open { display: flex; }
+  #searchInput {
+    background: var(--q-bg); border: 0; border-radius: 9px; outline: none;
+    color: var(--ink); font: inherit; font-size: 14px; padding: 10px 12px; flex: none;
+  }
+  #searchResults { overflow-y: auto; margin-top: 8px; }
+  .sr-row { padding: 9px 10px; border-radius: 9px; cursor: pointer; }
+  .sr-row:hover { background: #ececea; }
+  .sr-board { font-size: 12px; color: var(--ink-faint); margin-bottom: 2px; }
+  .sr-snip { font-size: 13.5px; color: var(--ink); }
+  .sr-empty { padding: 14px 10px; font-size: 13px; color: var(--ink-faint); }
+
+  /* ---------- settings ---------- */
+  #settingsModal {
+    position: fixed; z-index: 510; display: none;
+    left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: min(400px, calc(100vw - 48px));
+    background: var(--card); border: 1px solid var(--edge-soft);
+    border-radius: 14px; padding: 22px; box-shadow: var(--shadow-pop);
+  }
+  #settingsModal .sm-title { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 16px; }
+  #settingsModal .sm-field { display: block; margin-bottom: 6px; }
+  #settingsModal .sm-field span { display: block; font-size: 12.5px; color: var(--ink-dim); margin-bottom: 6px; }
+  #settingsModal input {
+    width: 100%; background: var(--q-bg); border: 0; border-radius: 8px;
+    color: var(--ink); font: inherit; font-size: 13.5px; padding: 9px 11px;
+    outline: none; box-sizing: border-box;
+  }
+  #settingsModal .sm-hint { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; margin: 6px 0 16px; }
+  #settingsModal .sm-sep { height: 1px; background: var(--edge-soft); margin: 4px 0 16px; }
+  #settingsModal .sm-danger {
+    width: 100%; background: none; border: 1px solid #e3b3af; color: #b23b34;
+    font: inherit; font-size: 13px; padding: 9px 11px; border-radius: 8px; cursor: pointer;
+  }
+  #settingsModal .sm-danger:hover { background: #fdecebe6; }
+  #settingsModal .sm-row { display: flex; justify-content: flex-end; margin-top: 4px; }
+  #settingsModal .sm-row button {
+    font: inherit; font-size: 13px; padding: 8px 18px; border-radius: 999px;
+    cursor: pointer; border: 0; background: #17171a; color: #ffffff;
+  }
+  #settingsModal .sm-row button:hover { background: #000000; }
+
+  /* ---------- image cards ---------- */
+  .imgcard .imgwrap {
+    border-radius: 9px; overflow: hidden; background: var(--q-bg);
+    margin-bottom: 8px; display: flex; align-items: center; justify-content: center;
+  }
+  .imgcard .cardimg { display: block; width: 100%; height: auto; max-width: 100%; object-fit: contain; cursor: zoom-in; }
+  .imgcard .note {
+    font-size: 13.5px; line-height: 1.5; color: var(--ink); white-space: pre-wrap;
+    word-break: break-word; padding: 6px 4px; min-height: 22px; outline: none; border-radius: 6px;
+  }
+  .imgcard .note:focus { background: var(--q-bg); }
+  .imgcard .note:empty::before { content: attr(data-ph); color: var(--ink-faint); }
+  .card.mini .imgwrap, .card.mini .note { display: none; }
+  body.linear .imgcard .imgwrap { max-width: 66%; }
+
+  /* drag-and-drop an image file onto the board */
+  #stage.dragover::after {
+    content: 'Drop image to add it to the board';
+    position: absolute; inset: 18px; z-index: 300;
+    border: 2px dashed var(--accent-hi); border-radius: 18px;
+    background: rgba(23,23,26,.045);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--accent); font-weight: 500;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #side, #stage, #flight.flying, #orb.live, #fa::after { transition: none; animation: none; }
+  }
+
+  /* ================= mobile ================= */
+  /* Below this width the fixed 258px sidebar would eat most of the screen,
+     so it becomes an off-canvas drawer instead: hidden by default, slides
+     in as an overlay over the (full-width) stage. Reuses the existing
+     "rail" toggle class — on desktop that class means "compact icon rail",
+     on mobile it means "drawer open" — same button, same boolean, the CSS
+     underneath it just means something else at this width. */
+  #sideScrim {
+    display: none; position: fixed; inset: 0; z-index: 399;
+    background: rgba(15,15,13,.32);
+  }
+  #mobileMenuBtn {
+    display: none; position: fixed; top: 16px; left: 16px; z-index: 250;
+    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    box-shadow: var(--shadow-card);
+  }
+  @media (max-width: 720px) {
+    #side {
+      transform: translateX(-100%); width: min(84vw, 300px);
+      box-shadow: var(--shadow-pop);
+    }
+    body.rail #side { transform: translateX(0); width: min(84vw, 300px); }
+    /* on mobile "rail" means open, not compact — undo the desktop
+       icon-only-rail treatment for this width */
+    body.rail .railhide { opacity: 1; pointer-events: auto; }
+    body.rail #recents { visibility: visible; }
+    #stage, body.rail #stage { left: 0 !important; }
+    body.rail #sideScrim { display: block; }
+    #mobileMenuBtn { display: flex; }
+    body.rail #mobileMenuBtn { display: none; }
+
+    /* top row gets tight — trim padding so bar/share/menu-btn all fit */
+    #bar { top: 14px; padding: 3px; }
+    #bar button { min-width: 0; padding: 5px 12px; font-size: 12.5px; }
+    #share { top: 14px; right: 14px; gap: 4px; }
+    #share button { padding: 6px 10px; font-size: 12.5px; }
+    #share button span.lbl-full { display: none; }
+
+    /* util pill would collide with the composer at this width — move it
+       to its own row above the composer instead of sharing the bottom-left */
+    #util { left: 50%; transform: translateX(-50%); bottom: 84px; }
+
+    .card { width: min(560px, 84vw); }
+  }
+</style>
+
+<div id="sideScrim"></div>
+<div id="mobileMenuBtn" class="iconbtn" title="Menu">
+  <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h13M2.5 9h13M2.5 13h13"/></svg>
+</div>
+
+<div id="side">
+  <div id="brand">
+    <div id="mark">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#2f2f33" stroke-width="1.4">
+        <rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="4" width="5" height="5" rx="1"/>
+        <path d="M6 3.5h2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div id="brandname" class="railhide">board</div>
+    <div class="iconbtn railhide" id="collapse" title="Collapse">
+      <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="2" y="3" width="14" height="12" rx="2.5"/><path d="M7 3v12"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="item" id="nNew">
+      <div class="ico"><svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l4 4L7 15l-4.5.5L3 11z"/></svg></div>
+      <div class="lbl railhide">New board</div>
+    </div>
+    <div class="item" id="nSearch">
+      <div class="ico"><svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/><path d="M11.8 11.8L15.5 15.5"/></svg></div>
+      <div class="lbl railhide">Search</div>
+    </div>
+    <div class="item" id="nImages">
+      <div class="ico"><svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><circle cx="6.4" cy="7" r="1.3"/><path d="M2.6 12.5l3.6-3.4 3.2 3 2.4-2.2 3.6 3.3"/></svg></div>
+      <div class="lbl railhide">Images</div>
+    </div>
+    <div class="item" id="nLibrary">
+      <div class="ico"><svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M3 3.5h3.4a2 2 0 012 2V15a1.6 1.6 0 00-1.6-1.4H3z"/><path d="M15 3.5h-3.4a2 2 0 00-2 2V15a1.6 1.6 0 011.6-1.4H15z"/></svg></div>
+      <div class="lbl railhide">Library</div>
+    </div>
+  </div>
+
+  <div id="recents">
+    <div class="eyebrow">Recent</div>
+    <div id="reclist"></div>
+  </div>
+
+  <div id="who">
+    <div id="avatar"></div>
+    <div id="whoname" class="railhide">Benjamin LeMar</div>
+    <div class="iconbtn railhide" id="settings" title="Settings">
+      <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+        <path d="M2.5 5.5h13M2.5 12.5h13"/><circle cx="7" cy="5.5" r="1.9" fill="var(--side)"/><circle cx="12" cy="12.5" r="1.9" fill="var(--side)"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div id="stage">
+  <canvas id="dots"></canvas>
+  <div id="world">
+    <svg id="thread"><polyline id="threadline" fill="none" stroke="#4a4a52" stroke-width="1.5" opacity=".5"/></svg>
+    <svg id="links"></svg>
+  </div>
+  <div id="empty">Ask something.</div>
+
+  <div id="bar">
+    <div id="barThumb"></div>
+    <button id="mNode" class="on">node</button>
+    <button id="mLinear">linear</button>
+  </div>
+
+  <div id="share">
+    <button id="shareBtn">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V2.5"/><path d="M5.6 5.9L9 2.5l3.4 3.4"/><path d="M3.5 11v3.5a1 1 0 001 1h9a1 1 0 001-1V11"/></svg>
+      <span class="lbl-full">Share</span>
+    </button>
+    <button id="dots3">•••</button>
+    <div id="menu">
+      <div class="mi" id="miFiles">
+        <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M10 2.5H4.5a1 1 0 00-1 1v11a1 1 0 001 1h9a1 1 0 001-1V7z"/><path d="M10 2.5V7h4.5"/></svg>
+        View files and chat
+      </div>
+      <div class="mi" id="miPin">
+        <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2.5h5l-.8 4 2.6 2.6H4.7L7.3 6.5z"/><path d="M9 9.1V15.5"/></svg>
+        Pin chat
+      </div>
+      <div class="mi" id="miArchive">
+        <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2.5" y="3" width="13" height="3.4" rx="1"/><path d="M3.8 6.4v7.6a1 1 0 001 1h8.4a1 1 0 001-1V6.4"/><path d="M7.2 9.4h3.6"/></svg>
+        Archive
+      </div>
+      <div class="mi" id="miExport">
+        <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v9"/><path d="M5.5 8l3.5 3.5L12.5 8"/><path d="M3.5 13.5v1a1 1 0 001 1h9a1 1 0 001-1v-1"/></svg>
+        Export board (.json)
+      </div>
+      <div class="sep"></div>
+      <div class="mi danger" id="miDelete">
+        <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h12"/><path d="M7 4.5V3a.8.8 0 01.8-.8h2.4A.8.8 0 0111 3v1.5"/><path d="M4.6 4.5l.7 10a1 1 0 001 .9h5.4a1 1 0 001-.9l.7-10"/></svg>
+        Delete
+      </div>
+    </div>
+  </div>
+
+  <div id="rail"></div>
+
+  <div id="amenu">
+    <div class="mi" data-a="sources">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2.5 4.2A1.7 1.7 0 014.2 2.5h3.1a1.7 1.7 0 011.7 1.7v9.6a1.7 1.7 0 00-1.7-1.7H4.2a1.7 1.7 0 01-1.7-1.7z"/><path d="M15.5 4.2a1.7 1.7 0 00-1.7-1.7h-3.1A1.7 1.7 0 009 4.2v9.6a1.7 1.7 0 011.7-1.7h3.1a1.7 1.7 0 001.7-1.7z"/></svg>
+      View sources
+    </div>
+    <div class="mi" data-a="branch">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="4" r="1.8"/><circle cx="5" cy="14" r="1.8"/><circle cx="13" cy="9" r="1.8"/><path d="M5 5.8v6.4"/><path d="M5 9h6.2"/></svg>
+      Branch
+    </div>
+    <div class="mi" data-a="read">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 3.2L5.2 6H3a.8.8 0 00-.8.8v4.4A.8.8 0 003 12h2.2l3.2 2.8a.5.5 0 00.8-.4V3.6a.5.5 0 00-.8-.4z"/><path d="M12 6.6a3.4 3.4 0 010 4.8"/><path d="M14.2 4.4a6.5 6.5 0 010 9.2"/></svg>
+      Read out loud
+    </div>
+    <div class="mi" data-a="detach" id="miDetach">
+      <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 10.5l3-3"/><path d="M9.5 5.5l1-1a2.5 2.5 0 013.5 3.5l-1 1"/><path d="M8.5 12.5l-1 1a2.5 2.5 0 01-3.5-3.5l1-1"/><path d="M3 3l12 12"/></svg>
+      Detach from parent
+    </div>
+  </div>
+
+  <div id="flight"><div id="fq"></div><div id="fa"></div></div>
+
+  <div id="vstatus"></div>
+  <div id="ttsBar">
+    <span class="dot"></span><span id="ttsLabel">Reading…</span>
+    <button id="ttsStop" title="Stop reading">Stop</button>
+  </div>
+
+  <div id="quotePop"><button id="quotePopBtn"><svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v12"/><path d="M3 9h12"/></svg>Ask about this</button></div>
+
+  <div id="composer">
+    <div id="quoteChip">
+      <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5H3.5a1 1 0 00-1 1v3a1 1 0 001 1H5l1.2 2.6V5.5a1 1 0 00-1-1z"/><path d="M14.5 4.5H12a1 1 0 00-1 1v3a1 1 0 001 1h1.5l1.2 2.6V5.5a1 1 0 00-1-1z"/></svg>
+      <span id="quoteChipText"></span>
+      <button id="quoteChipX" title="Remove reference">&times;</button>
+    </div>
+    <div id="composerRow">
+      <input id="attachFile" type="file" accept="image/*" multiple style="display:none">
+      <div id="attach" data-t="Add image"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><circle cx="6.4" cy="7" r="1.3"/><path d="M2.6 12.5l3.6-3.4 3.2 3 2.4-2.2 3.6 3.3"/></svg></div>
+      <textarea id="input" rows="1" placeholder="Ask anything — tap the mic to speak" autocomplete="off"></textarea>
+      <div id="dictate" data-t="Dictate"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="1.8" width="5" height="9" rx="2.5"/><path d="M3.8 8.2a5.2 5.2 0 0010.4 0"/><path d="M9 13.4v2.8"/></svg></div>
+      <div id="orb" data-t="Start Live Voice"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v13"/><path d="M5.6 5.4v7.2"/><path d="M2.4 7.4v3.2"/><path d="M12.4 5.4v7.2"/><path d="M15.6 7.4v3.2"/></svg></div>
+    </div>
+  </div>
+
+  <div id="util">
+    <button id="tThread" title="Draw a faint line connecting cards in the order you created them">thread</button>
+    <button id="tHome" title="Recenter the camera on your most recent card">home</button>
+    <span id="zoom" title="Zoom level — scroll or pinch on the canvas to change it">100%</span>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<div id="reader"><div class="rn"></div><div class="rq"></div><div class="ra"></div></div>
+
+<div id="confirmModal">
+  <div class="cm-msg"></div>
+  <div class="cm-row">
+    <button class="cm-cancel">Cancel</button>
+    <button class="cm-ok">Delete</button>
+  </div>
+</div>
+
+<div id="searchModal">
+  <input id="searchInput" placeholder="Search board names and card content…" autocomplete="off">
+  <div id="searchResults"></div>
+</div>
+
+<div id="settingsModal">
+  <div class="sm-title">Settings</div>
+  <label class="sm-field">
+    <span>Your name</span>
+    <input id="setName" autocomplete="off">
+  </label>
+  <label class="sm-field">
+    <span>Live-voice voice (optional)</span>
+    <input id="setVoice" placeholder="server default — e.g. marin, cedar, alloy" autocomplete="off">
+  </label>
+  <div class="sm-hint">Overrides the voice used for live conversation (Mode 2). Leave blank to use whatever's set on the server.</div>
+  <div class="sm-sep"></div>
+  <div class="sm-field">
+    <span>Local data</span>
+    <button id="setClear" class="sm-danger">Clear all boards on this browser</button>
+  </div>
+  <div class="sm-hint">Boards (including any uploaded images) are only saved in this browser's storage — there's no account or server-side copy. This permanently erases them here.</div>
+  <div class="sm-row"><button id="setClose">Done</button></div>
+</div>
+
+<div id="linkedit">
+  <input id="linkword" placeholder="bridge word (optional)" autocomplete="off">
+  <div class="row">
+    <label class="ctx"><input type="checkbox" id="linkctx"> use as context</label>
+    <button class="del" id="linkdel">Remove</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var GAP = 28, PAD = 5, EDGE_PAD = 70;
+  var CARD_W = 768, MIN_W = 360, MAX_W = 768;      // you can resize between these
+  var CARD_AH = 480, MIN_AH = 120, MAX_AH = 2200;  // answer viewport height
+  var LINEAR_W = 768, FLIGHT_W = 768;
+
+  var UI = { mode: 'node', dragging: false, busy: false, thread: false };
+  var boards = [];
+  var B = null;                       // current board
+  var SR = { left: 0, top: 0, w: 0, h: 0 };
+
+  var stage = document.getElementById('stage');
+  var world = document.getElementById('world');
+  var dots = document.getElementById('dots');
+  var dctx = dots.getContext('2d');
+  var composer = document.getElementById('composer');
+  var input = document.getElementById('input');
+  var orb = document.getElementById('orb');
+  var flight = document.getElementById('flight');
+  var fq = document.getElementById('fq');
+  var fa = document.getElementById('fa');
+  var threadEl = document.getElementById('threadline');
+  var reclist = document.getElementById('reclist');
+  var emptyEl = document.getElementById('empty');
+  var reader = document.getElementById('reader');
+  var scrim = document.getElementById('scrim');
+
+  function syncRect() {
+    var r = stage.getBoundingClientRect();
+    SR.left = r.left; SR.top = r.top; SR.w = r.width; SR.h = r.height;
+  }
+  function ex(e) { return e.clientX - SR.left; }
+  function ey(e) { return e.clientY - SR.top; }
+
+  // ---------- persistence ----------
+  // Everything lives in a JS array until now — refresh the tab, lose the
+  // board. Autosave the whole in-memory state to localStorage (debounced)
+  // and restore it on load. Not a real backend/account system, but it's
+  // the difference between a demo and something a tester can actually live
+  // in across sessions.
+  var STORAGE_KEY = 'spatialBoard.v1';
+  var saveTimer = null;
+  function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
+  var saveFailedOnce = false;
+  function saveNow() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState()));
+      saveFailedOnce = false;
+    } catch (e) {
+      console.warn('board: autosave failed', e);
+      // most likely cause: localStorage's quota (~5-10MB per browser) is full —
+      // easy to hit once a board has a few uploaded images in it. Say so once,
+      // rather than silently losing the newest changes on every refresh.
+      if (!saveFailedOnce) {
+        saveFailedOnce = true;
+        flashStatus("Couldn't save — this browser's local storage is full (large images add up fast). Use Export board (.json) as a backup.", 'err', 7000);
+      }
+    }
+  }
+  function serializeState() {
+    return {
+      v: 1, bid: bid, uid: uid, seq: seq, linkUid: linkUid,
+      activeBoardId: B ? B.id : null,
+      boards: boards.map(function (b) {
+        return {
+          id: b.id, name: b.name, pinned: b.pinned,
+          nextN: b.nextN, lastId: b.lastId, view: b.view, scroll: b.scroll,
+          links: b.links,
+          cards: b.cards.map(function (c) {
+            return { id: c.id, q: c.q, a: c.a, x: c.x, y: c.y, w: c.w, ah: c.ah,
+                     mini: c.mini, interrupted: c.interrupted, parent: c.parent,
+                     sub: c.sub, t: c.t, n: c.n, img: c.img || null,
+                     imgW: c.imgW || 0, imgH: c.imgH || 0 };
+          })
+        };
+      })
+    };
+  }
+  function loadState() {
+    var raw;
+    try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
+    if (!raw) return null;
+    try { var s = JSON.parse(raw); return (s && s.boards && s.boards.length) ? s : null; }
+    catch (e) { return null; }
+  }
+  function exportBoardJSON() {
+    var blob = new Blob([JSON.stringify(serializeState(), null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'board-export-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  window.addEventListener('beforeunload', saveNow);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) saveNow(); });
+
+  // ---------- boards ----------
+  var bid = 0, uid = 0, seq = 0;
+  function newBoard(name) {
+    var b = {
+      id: ++bid, name: name || 'Untitled', pinned: false,
+      cards: [], links: [], nextN: 1, lastId: null,
+      view: { x: SR.w / 2, y: SR.h / 2 - 60, z: 1 },   // node camera
+      scroll: 0                                        // linear scroll — separate state
+    };
+    boards.unshift(b);
+    scheduleSave();
+    return b;
+  }
+  // collapse any empty, unpinned "new chat" placeholders down to one —
+  // keeps boards (newest-first) clean after the reuse-current-chat fix,
+  // and also cleans up anything that piled up before that fix existed.
+  function dedupeEmptyBoards() {
+    var seenEmpty = false;
+    var kept = boards.filter(function (b) {
+      if (b.pinned || b.cards.length > 0) return true;
+      if (seenEmpty) return false;
+      seenEmpty = true;
+      return true;
+    });
+    if (kept.length !== boards.length) { boards = kept; scheduleSave(); }
+  }
+  function switchTo(b) {
+    if (B === b) return;
+    // tear down current DOM; the data stays on the board object
+    if (B) B.cards.forEach(function (c) { if (c.el) { c.el.remove(); c.el = null; } });
+    B = b;
+    B.cards.forEach(function (c) { buildEl(c); measure(c); });
+    renderRecents(); draw();
+    input.focus();
+  }
+  function renderRecents() {
+    var list = boards.slice().sort(function (a, b2) { return (b2.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
+    reclist.innerHTML = '';
+    list.forEach(function (b) {
+      var el = document.createElement('div');
+      el.className = 'rec' + (b === B ? ' on' : '') + (b.pinned ? ' pinned' : '');
+      el.innerHTML = '<div class="nm"></div>' +
+        '<div class="del2" title="Delete">' +
+        '<svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h12"/><path d="M7 4.5V3a.8.8 0 01.8-.8h2.4A.8.8 0 0111 3v1.5"/><path d="M4.6 4.5l.7 10a1 1 0 001 .9h5.4a1 1 0 001-.9l.7-10"/></svg></div>' +
+        '<div class="pin" title="Pin">' +
+        '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M5 1.5h4l-.6 3.2 2.1 2.1H3.5l2.1-2.1z"/><path d="M7 6.8V12.5"/></svg></div>';
+      el.querySelector('.nm').textContent = b.name;
+      el.addEventListener('click', function () { switchTo(b); });
+      el.querySelector('.pin').addEventListener('click', function (e) {
+        e.stopPropagation(); b.pinned = !b.pinned; renderRecents(); scheduleSave();
+      });
+      el.querySelector('.del2').addEventListener('click', function (e) {
+        e.stopPropagation(); deleteBoard(b);
+      });
+      reclist.appendChild(el);
+    });
+  }
+  // shared by the sidebar hover-delete icon and the ••• menu's Delete item
+  async function deleteBoard(b) {
+    if (boards.length <= 1) { flashStatus("Can't delete your only chat.", 'err', 2600); return; }
+    var ok = await askConfirm('Delete "' + b.name + '"? This can\'t be undone.', 'Delete');
+    if (!ok) return;
+    var idx = boards.indexOf(b);
+    if (b === B) {
+      var next = boards[idx + 1] || boards[idx - 1] || boards[0];
+      switchTo(next);                          // tears down doomed's DOM, activates next
+    }
+    boards.splice(boards.indexOf(b), 1);
+    renderRecents();
+    scheduleSave();
+  }
+
+  // ---------- geometry ----------
+  function toScreen(x, y) { return { x: x * B.view.z + B.view.x, y: y * B.view.z + B.view.y }; }
+  function toWorld(x, y) { return { x: (x - B.view.x) / B.view.z, y: (y - B.view.y) / B.view.z }; }
+  function overlaps(a, b) {
+    return !(a.x + a.w + PAD <= b.x || b.x + b.w + PAD <= a.x ||
+             a.y + a.h + PAD <= b.y || b.y + b.h + PAD <= a.y);
+  }
+  function collides(box, ignoreId) {
+    for (var i = 0; i < B.cards.length; i++) {
+      var c = B.cards[i];
+      if (ignoreId && c.id === ignoreId) continue;
+      if (overlaps(box, { x: c.x, y: c.y, w: c.w, h: c.h })) return true;
+    }
+    return false;
+  }
+  // one rule: placement AND drops
+  function nearestFree(ideal, w, h, ignoreId) {
+    if (!collides({ x: ideal.x, y: ideal.y, w: w, h: h }, ignoreId)) return ideal;
+    // prefer a flush edge with a nearby card, so stacks line up exactly
+    var snap = snapToEdge(ideal, w, h, ignoreId);
+    if (snap) return snap;
+    var step = 6;
+    for (var r = 1; r < 220; r++) {
+      var n = Math.max(8, Math.round(r * 2.2));
+      for (var i = 0; i < n; i++) {
+        var a = (i / n) * Math.PI * 2;
+        var p = { x: ideal.x + Math.cos(a) * r * step, y: ideal.y + Math.sin(a) * r * step };
+        if (!collides({ x: p.x, y: p.y, w: w, h: h }, ignoreId)) return p;
+      }
+    }
+    return ideal;
+  }
+  // If the drop point is near a card, offer the four flush positions around it
+  // (right/left/below/above, edges aligned, PAD gap) and take the free one
+  // closest to where the card was released. Falls through to the spiral if none.
+  var SNAP_REACH = 90;
+  function snapToEdge(ideal, w, h, ignoreId) {
+    var reach = Math.max(w, h) * 0.6 + SNAP_REACH;
+    // find the single nearest card to where you released
+    var target = null, tD = Infinity;
+    var icx = ideal.x + w / 2, icy = ideal.y + h / 2;
+    for (var i = 0; i < B.cards.length; i++) {
+      var nb = B.cards[i];
+      if (ignoreId && nb.id === ignoreId) continue;
+      var d = Math.hypot((nb.x + nb.w / 2) - icx, (nb.y + nb.h / 2) - icy);
+      if (d < tD) { tD = d; target = nb; }
+    }
+    if (!target) return null;
+    // its four flush positions; take the free one nearest the release point
+    var cands = [
+      { x: target.x + target.w + PAD, y: target.y },          // right, tops aligned
+      { x: target.x - w - PAD,        y: target.y },          // left,  tops aligned
+      { x: target.x,                  y: target.y + target.h + PAD }, // below, lefts aligned
+      { x: target.x,                  y: target.y - h - PAD }         // above, lefts aligned
+    ];
+    var best = null, bestD = Infinity;
+    for (var k = 0; k < cands.length; k++) {
+      var p = cands[k];
+      if (collides({ x: p.x, y: p.y, w: w, h: h }, ignoreId)) continue;
+      var pd = Math.hypot(p.x - ideal.x, p.y - ideal.y);
+      if (pd < bestD && pd <= reach) { bestD = pd; best = p; }
+    }
+    return best;
+  }
+  function place(w, h) {
+    var last = byId(B.lastId);
+    var ideal = last ? { x: last.x + last.w + GAP, y: last.y } : { x: -CARD_W / 2, y: -100 };
+    return nearestFree(ideal, w, h, null);
+  }
+  function byId(id) {
+    for (var i = 0; i < B.cards.length; i++) if (B.cards[i].id === id) return B.cards[i];
+    return null;
+  }
+
+  // ---------- cards ----------
+  function addCard(q, a, x, y, opts) {
+    opts = opts || {};
+    var c = { id: ++uid, q: q, a: a, x: x, y: y,
+              w: opts.w || CARD_W, ah: opts.ah || CARD_AH, h: 0, mini: false, el: null,
+              interrupted: !!opts.interrupted,
+              parent: opts.parent || null,   // id of the exchange this was injected under
+              sub: 0,                         // sub-index under parent (1,2,3…); 0 = top-level
+              img: opts.img || null,          // data URL — set only for an uploaded-image card
+              imgW: opts.imgW || 0, imgH: opts.imgH || 0,  // natural pixel size, for aspect-ratio
+              t: ++seq };                     // internal creation order, always monotonic
+    if (c.parent != null) {
+      // child: number is parent-relative (5-1, 5-2…). does not consume a top number.
+      var siblings = B.cards.filter(function (k) { return k.parent === c.parent; });
+      c.sub = siblings.length + 1;
+      c.n = null;                             // children have no flat number
+    } else {
+      c.n = B.nextN++;                        // top-level: flat integer, time order
+    }
+    B.cards.push(c);
+    buildEl(c); measure(c);
+    scheduleSave();
+    return c;
+  }
+  // display label: "6" for top-level, "5-1" for a child, tracing the parent's number
+  function label(c) {
+    if (c.parent == null) return String(c.n);
+    var p = byId(c.parent);
+    return (p ? label(p) : '?') + '-' + c.sub;
+  }
+
+  // action rows. shared by the real card and the measuring probe, so the
+  // reserved height is identical in both — the card must not resize on hover.
+  var IC = {
+    copy: '<svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="6.4" y="6.4" width="9.1" height="9.1" rx="1.6"/><path d="M11.6 6.4V4.1a1.6 1.6 0 00-1.6-1.6H4.1a1.6 1.6 0 00-1.6 1.6v5.9a1.6 1.6 0 001.6 1.6h2.3"/></svg>',
+    edit: '<svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.1 2.9a1.7 1.7 0 012.4 2.4L6.2 13.6l-3.1.7.7-3.1z"/></svg>',
+    share: '<svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V2.5"/><path d="M5.6 5.9L9 2.5l3.4 3.4"/><path d="M3.5 11v3.5a1 1 0 001 1h9a1 1 0 001-1V11"/></svg>',
+    retry: '<svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9a6 6 0 11-1.8-4.3"/><path d="M15.2 2.6v3.6h-3.6"/></svg>',
+    dots: '<svg width="15" height="15" viewBox="0 0 18 18" fill="currentColor"><circle cx="4.2" cy="9" r="1.25"/><circle cx="9" cy="9" r="1.25"/><circle cx="13.8" cy="9" r="1.25"/></svg>',
+    follow: '<svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5v6a3 3 0 003 3h5"/><path d="M10.5 8.7l3 2.8-3 2.8"/></svg>'
+  };
+  function actsHTML() {
+    return {
+      q: '<div class="qacts acts">' +
+           '<button data-a="qcopy" data-t="Copy message">' + IC.copy + '</button>' +
+           '<button data-a="qedit" data-t="Edit message">' + IC.edit + '</button>' +
+         '</div>',
+      a: '<div class="aacts acts">' +
+           '<button data-a="acopy" data-t="Copy response">' + IC.copy + '</button>' +
+           '<button data-a="afollow" data-t="Ask a follow-up">' + IC.follow + '</button>' +
+           '<button data-a="ashare" data-t="Share">' + IC.share + '</button>' +
+           '<button data-a="aretry" data-t="Retry">' + IC.retry + '</button>' +
+           '<button data-a="amore" data-t="More actions">' + IC.dots + '</button>' +
+         '</div>'
+    };
+  }
+  // lighter action row for an image card — no AI retry/regenerate, since
+  // there's no exchange behind it to redo.
+  function imgActsHTML() {
+    return '<div class="aacts acts">' +
+             '<button data-a="acopy" data-t="Copy note">' + IC.copy + '</button>' +
+             '<button data-a="afollow" data-t="Ask a follow-up">' + IC.follow + '</button>' +
+             '<button data-a="amore" data-t="More actions">' + IC.dots + '</button>' +
+           '</div>';
+  }
+  function copyText(t, btn) {
+    function done() {
+      if (!btn) return;
+      var was = btn.getAttribute('data-t');
+      btn.setAttribute('data-t', 'Copied');
+      setTimeout(function () { btn.setAttribute('data-t', was); }, 900);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, function () { legacy(); });
+    } else legacy();
+    function legacy() {                 // file:// can be fussy about the async API
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+  }
+  var amenu = document.getElementById('amenu'), amenuCard = null;
+  function openAmenu(btn, c) {
+    amenuCard = c || null;
+    // detach only makes sense for a child card
+    document.getElementById('miDetach').style.display = (c && c.parent != null) ? 'flex' : 'none';
+    var r = btn.getBoundingClientRect();
+    amenu.style.left = Math.min(window.innerWidth - 196, r.left) + 'px';
+    amenu.style.top = (r.bottom + 6) + 'px';
+    amenu.classList.add('open');
+  }
+  window.addEventListener('pointerdown', function (e) {
+    if (!amenu.contains(e.target) && !(e.target.closest && e.target.closest('[data-a="amore"]')))
+      amenu.classList.remove('open');
+  });
+  // "View sources" and "Branch" are reserved — what they'd actually do is a
+  // design decision that isn't made yet. "Read out loud" and "Detach" work.
+  amenu.addEventListener('click', function (e) {
+    var mi = e.target.closest && e.target.closest('.mi');
+    var act = mi && mi.getAttribute('data-a');
+    if (act === 'detach' && amenuCard) detach(amenuCard);
+    else if (act === 'read' && amenuCard) readAloud(amenuCard);
+    amenu.classList.remove('open');
+  });
+
+  // ---- read out loud: real speech from the server's /tts, not the browser's
+  // built-in speechSynthesis — that's a robotic system voice, not a neural
+  // one, which is why it sounded nothing like a live-conversation reply or
+  // ChatGPT/Claude's own voice. This does cost a small amount of OpenAI
+  // usage per read (unlike the old free browser TTS), same as live voice.
+  var speaking = null;    // the card currently being read, or null
+  var speakAudio = null;  // the <audio> element currently playing, or null
+  var speakUrl = null;    // its object URL, so it can be revoked on stop
+  var ttsBar = document.getElementById('ttsBar');
+  var ttsLabel = document.getElementById('ttsLabel');
+  function stopReading() {
+    if (speakAudio) { speakAudio.pause(); speakAudio.src = ''; speakAudio = null; }
+    if (speakUrl) { URL.revokeObjectURL(speakUrl); speakUrl = null; }
+    speaking = null;
+    ttsBar.classList.remove('show');
+  }
+  document.getElementById('ttsStop').addEventListener('click', stopReading);
+  async function readAloud(c) {
+    if (speaking === c) { stopReading(); return; }   // clicking it again stops it
+    stopReading();                                     // switching cards mid-read stops the old one
+    var text = (c.a || '').trim();
+    if (!text) return;
+    speaking = c;
+    ttsLabel.textContent = 'Loading audio for ' + label(c) + '…';
+    ttsBar.classList.add('show');
+    try {
+      var r = await fetch(RELAY + '/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, voice: profile.voice })
+      });
+      if (!r.ok) {
+        var d = await r.text().catch(function () { return ''; });
+        throw new Error('HTTP ' + r.status + (d ? ' — ' + d.slice(0, 160) : ''));
+      }
+      if (speaking !== c) return;   // stopped, or switched cards, while this was loading
+      var blob = await r.blob();
+      if (speaking !== c) return;
+      speakUrl = URL.createObjectURL(blob);
+      speakAudio = new Audio(speakUrl);
+      ttsLabel.textContent = 'Reading ' + label(c);
+      speakAudio.onended = function () { if (speaking === c) stopReading(); };
+      speakAudio.onerror = function () { if (speaking === c) { stopReading(); flashStatus('Playback failed.', 'err', 3200); } };
+      speakAudio.play();
+    } catch (err) {
+      if (speaking === c) stopReading();
+      flashStatus('Could not read that aloud: ' + (err.message || err) + ' — is the server running with an OpenAI key?', 'err', 4600);
+    }
+  }
+  // detach a child: keep its 5-1 identity, but free it as its own node and
+  // remove the auto lineage link so it no longer visually hangs off the parent.
+  function detach(c) {
+    if (c.parent == null) return;
+    B.links = B.links.filter(function (l) {
+      return !(l.lineage && ((l.a === c.parent && l.b === c.id) || (l.b === c.parent && l.a === c.id)));
+    });
+    c.detached = true;      // label stays (label() still traces parent), position is now free
+    draw();
+  }
+
+  function wireActs(el, c) {
+    el.querySelectorAll('.acts button').forEach(function (b) {
+      // stop drag on press; act on click
+      b.addEventListener('pointerdown', function (e) { e.stopPropagation(); e.preventDefault(); });
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var a = b.getAttribute('data-a');
+        if (a === 'qcopy') copyText(c.q, b);
+        else if (a === 'acopy') copyText(c.a, b);
+        else if (a === 'qedit') startEdit(c);
+        else if (a === 'aretry') retry(c);
+        else if (a === 'afollow') setInject(c);
+        else if (a === 'amore') openAmenu(b, c);
+      });
+    });
+  }
+
+  // edit = re-ask. rule 9: the original card's words are never rewritten.
+  // editing commits a NEW card (new number, fresh answer) steered off the one
+  // you edited, so "right of N" continues from there.
+  function startEdit(c) {
+    if (UI.busy) return;
+    input.value = c.q;
+    autoGrowInput();
+    B.lastId = c.id;            // new card lands right of the one you're editing
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+  function retry(c) {
+    if (UI.busy) return;
+    B.lastId = c.id;
+    ask(c.q);                   // same question, new card, fresh answer
+  }
+
+  function buildEl(c) {
+    var el = document.createElement('div');
+    el.className = 'card' + (c.mini ? ' mini' : '') + (c.img ? ' imgcard' : '');
+    el.dataset.id = c.id;   // lets a text selection inside a card find its way back to the model
+
+    if (c.img) {
+      var IA = imgActsHTML();
+      el.innerHTML =
+        '<div class="min" title="minimize">' + (c.mini ? '&plus;' : '&minus;') + '</div><div class="n"></div>' +
+        '<div class="bar"></div>' +
+        '<div class="imgwrap"><img class="cardimg" src="" alt=""></div>' +
+        '<div class="note" contenteditable="true" spellcheck="false" data-ph="Add a note about this image…"></div>' + IA +
+        '<div class="linkref"></div>' +
+        '<div class="grip" title="Resize"></div>' +
+        '<div class="peek"><div class="pq"></div><div class="pa"></div></div>' +
+        '<div class="lh t" data-side="t"></div><div class="lh b" data-side="b"></div>' +
+        '<div class="lh l" data-side="l"></div><div class="lh r" data-side="r"></div>';
+      el.style.width = c.w + 'px';
+      el.querySelector('.n').textContent = label(c);
+      var imgEl = el.querySelector('.cardimg');
+      // reserve the correct box via aspect-ratio BEFORE the image decodes, so
+      // placement/collision math is right from the first synchronous measure
+      // instead of jumping after an async image load.
+      if (c.imgW && c.imgH) imgEl.style.aspectRatio = c.imgW + ' / ' + c.imgH;
+      imgEl.src = c.img;
+      imgEl.style.maxHeight = c.ah + 'px';
+      imgEl.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      imgEl.addEventListener('click', function (e) { e.stopPropagation(); openReader(c); });
+      // safety net for the rare case the aspect-ratio guess and the real
+      // decoded image disagree (e.g. a restored card from an older browser)
+      imgEl.addEventListener('load', function () {
+        measure(c);
+        var pr = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+        if (pr.x !== c.x || pr.y !== c.y) settle(c, pr.x, pr.y); else draw();
+      });
+      el.querySelector('.bar').textContent = c.q || 'Image';
+      el.querySelector('.pq').textContent = c.q || 'Image';
+      el.querySelector('.pa').textContent = c.a;
+      var noteEl = el.querySelector('.note');
+      noteEl.textContent = c.a || '';
+      noteEl.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      noteEl.addEventListener('keydown', function (e) { e.stopPropagation(); });
+      noteEl.addEventListener('input', function () { c.a = noteEl.textContent; scheduleSave(); });
+      noteEl.addEventListener('blur', function () {
+        measure(c);
+        var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+        if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
+      });
+      el.querySelector('.min').addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+        c.mini = !c.mini;
+        el.classList.toggle('mini', c.mini);
+        el.querySelector('.min').innerHTML = c.mini ? '&plus;' : '&minus;';
+        measure(c);
+        var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+        if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
+      });
+      el.querySelector('.grip').addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+        if (UI.mode === 'linear') return;
+        var z = B.view.z, sw = c.w, sah = c.ah, sx = e.clientX, sy = e.clientY;
+        UI.dragging = true;
+        function mv(ev) {
+          c.w = Math.round(Math.min(MAX_W, Math.max(MIN_W, sw + (ev.clientX - sx) / z)));
+          c.ah = Math.round(Math.min(MAX_AH, Math.max(MIN_AH, sah + (ev.clientY - sy) / z)));
+          el.style.width = c.w + 'px';
+          imgEl.style.maxHeight = c.ah + 'px';
+          measure(c); draw();
+        }
+        function up() {
+          UI.dragging = false;
+          window.removeEventListener('pointermove', mv);
+          window.removeEventListener('pointerup', up);
+          var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+          if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
+        }
+        window.addEventListener('pointermove', mv);
+        window.addEventListener('pointerup', up);
+      });
+      el.querySelectorAll('.lh').forEach(function (h) {
+        h.addEventListener('pointerdown', function (e) {
+          e.stopPropagation();
+          startLink(e, c, h.getAttribute('data-side'));
+        });
+      });
+      el.addEventListener('pointerdown', function (e) { startDrag(e, c); });
+      wireActs(el, c);
+      c.el = el;
+      world.appendChild(el);
+      return;
+    }
+
+    var A = actsHTML();
+    el.innerHTML =
+      '<div class="min" title="minimize">' + (c.mini ? '&plus;' : '&minus;') + '</div><div class="n"></div>' +
+      '<div class="bar"></div><div class="q"></div>' + A.q + '<div class="a"></div>' +
+      '<div class="more">more</div>' + A.a + '<div class="linkref"></div>' +
+      '<div class="grip" title="Resize"></div>' +
+      '<div class="peek"><div class="pq"></div><div class="pa"></div></div>' +
+      '<div class="lh t" data-side="t"></div><div class="lh b" data-side="b"></div>' +
+      '<div class="lh l" data-side="l"></div><div class="lh r" data-side="r"></div>';
+    el.style.width = c.w + 'px';
+    el.querySelector('.a').style.maxHeight = c.ah + 'px';
+    el.querySelector('.n').textContent = label(c);
+    el.querySelector('.q').textContent = c.q;
+    el.querySelector('.a').textContent = c.a;
+    el.querySelector('.bar').textContent = c.q;
+    el.querySelector('.pq').textContent = c.q;
+    el.querySelector('.pa').textContent = c.a;
+    // don't start a card-drag from inside the answer text — it needs a plain
+    // mousedown-drag to select text so you can quote it back into a question
+    el.querySelector('.a').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+    el.querySelector('.more').addEventListener('pointerdown', function (e) {
+      e.stopPropagation(); openReader(c);
+    });
+    el.querySelector('.min').addEventListener('pointerdown', function (e) {
+      e.stopPropagation();
+      c.mini = !c.mini;
+      el.classList.toggle('mini', c.mini);
+      el.querySelector('.min').innerHTML = c.mini ? '&plus;' : '&minus;';
+      measure(c);
+      var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+      if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
+    });
+    el.querySelector('.grip').addEventListener('pointerdown', function (e) {
+      e.stopPropagation();
+      if (UI.mode === 'linear') return;
+      var z = B.view.z, sw = c.w, sah = c.ah, sx = e.clientX, sy = e.clientY;
+      UI.dragging = true;
+      function mv(ev) {
+        c.w = Math.round(Math.min(MAX_W, Math.max(MIN_W, sw + (ev.clientX - sx) / z)));
+        c.ah = Math.round(Math.min(MAX_AH, Math.max(MIN_AH, sah + (ev.clientY - sy) / z)));
+        el.style.width = c.w + 'px';
+        el.querySelector('.a').style.maxHeight = c.ah + 'px';
+        measure(c); draw();
+      }
+      function up() {
+        UI.dragging = false;
+        window.removeEventListener('pointermove', mv);
+        window.removeEventListener('pointerup', up);
+        // growing can land on a neighbour — same rule as everywhere else
+        var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+        if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
+      }
+      window.addEventListener('pointermove', mv);
+      window.addEventListener('pointerup', up);
+    });
+    el.querySelectorAll('.lh').forEach(function (h) {
+      h.addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+        startLink(e, c, h.getAttribute('data-side'));
+      });
+    });
+    el.addEventListener('pointerdown', function (e) { startDrag(e, c); });
+    wireActs(el, c);
+    c.el = el;
+    world.appendChild(el);
+  }
+
+  function measure(c) {
+    c.el.style.transform = 'translate(0px,0px)';
+    if (c.img) {
+      // no text clipping/mask for an image card — it just takes whatever
+      // height its image + note actually render at, in both modes.
+      c.h = c.el.offsetHeight;
+      return;
+    }
+    if (UI.mode === 'node') {
+      var a = c.el.querySelector('.a'), q = c.el.querySelector('.q');
+      c.el.classList.toggle('clipped', !c.mini &&
+        (a.scrollHeight > a.clientHeight + 2 || q.scrollHeight > q.clientHeight + 2));
+      c.h = c.el.offsetHeight;
+    } else {
+      // in linear the card is styled as a chat message — its node geometry
+      // still has to be true, so measure it off-screen at node size.
+      var s = sizeOf(c.q, c.a, c.w, c.ah);
+      c.h = c.mini ? 36 : s.h;
+      c.el.classList.toggle('clipped', !c.mini && s.clipped);
+    }
+  }
+
+  function sizeOf(q, a, w, ah) {
+    var g = document.createElement('div');
+    g.className = 'card probe clipped';
+    g.style.visibility = 'hidden'; g.style.position = 'absolute';
+    g.style.width = (w || CARD_W) + 'px';
+    var A = actsHTML();
+    g.innerHTML = '<div class="q"></div>' + A.q + '<div class="a"></div>' +
+                  '<div class="more">more</div>' + A.a;
+    g.querySelector('.a').style.maxHeight = (ah || CARD_AH) + 'px';
+    g.querySelector('.q').textContent = q;
+    g.querySelector('.a').textContent = a;
+    world.appendChild(g);
+    var el = g.querySelector('.a'), ql = g.querySelector('.q');
+    var clipped = el.scrollHeight > el.clientHeight + 2 || ql.scrollHeight > ql.clientHeight + 2;
+    if (!clipped) g.classList.remove('clipped');
+    var r = { w: g.offsetWidth, h: g.offsetHeight, clipped: clipped };
+    world.removeChild(g);
+    return r;
+  }
+
+  function openReader(c) {
+    reader.querySelector('.rn').textContent = label(c);
+    if (c.img) {
+      reader.querySelector('.rq').textContent = c.q || 'Image';
+      var ra = reader.querySelector('.ra');
+      ra.innerHTML = '';
+      var big = document.createElement('img');
+      big.src = c.img;
+      big.style.cssText = 'display:block;max-width:100%;border-radius:10px;margin-bottom:14px;';
+      ra.appendChild(big);
+      if (c.a) { var note = document.createElement('div'); note.style.whiteSpace = 'pre-wrap'; note.textContent = c.a; ra.appendChild(note); }
+    } else {
+      reader.querySelector('.rq').textContent = c.q;
+      reader.querySelector('.ra').textContent = c.a;
+    }
+    reader.style.display = 'block'; scrim.style.display = 'block'; reader.scrollTop = 0;
+  }
+  function closeReader() { reader.style.display = 'none'; hideScrimIfNothingOpen(); }
+
+  // ---------- shared scrim: several modals sit behind the same dim backdrop,
+  // so closing one shouldn't blindly hide it out from under another ----------
+  function anyModalOpen() {
+    return reader.style.display === 'block' || confirmModal.style.display === 'block' ||
+           searchModal.classList.contains('open') || settingsModal.style.display === 'block';
+  }
+  function showScrim() { scrim.style.display = 'block'; }
+  function hideScrimIfNothingOpen() { if (!anyModalOpen()) scrim.style.display = 'none'; }
+  scrim.addEventListener('pointerdown', function () {
+    closeReader(); closeConfirm(false); closeSearch(); closeSettings();
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    closeReader(); closeConfirm(false); closeSearch(); closeSettings();
+  });
+
+  // ---------- in-app confirm dialog (replaces window.confirm — no native
+  // browser popup, matches the app's own look) ----------
+  var confirmModal = document.getElementById('confirmModal');
+  var confirmResolve = null;
+  function askConfirm(message, okLabel) {
+    return new Promise(function (resolve) {
+      confirmModal.querySelector('.cm-msg').textContent = message;
+      confirmModal.querySelector('.cm-ok').textContent = okLabel || 'Delete';
+      confirmModal.style.display = 'block'; showScrim();
+      confirmResolve = resolve;
+    });
+  }
+  function closeConfirm(result) {
+    if (confirmModal.style.display !== 'block') return;
+    confirmModal.style.display = 'none'; hideScrimIfNothingOpen();
+    if (confirmResolve) { var r = confirmResolve; confirmResolve = null; r(result); }
+  }
+  confirmModal.querySelector('.cm-cancel').addEventListener('click', function () { closeConfirm(false); });
+  confirmModal.querySelector('.cm-ok').addEventListener('click', function () { closeConfirm(true); });
+
+  // ---------- search: board names + every card's question/answer text ----------
+  var searchModal = document.getElementById('searchModal');
+  var searchInput = document.getElementById('searchInput');
+  var searchResults = document.getElementById('searchResults');
+  function openSearch() {
+    searchModal.classList.add('open'); showScrim();
+    searchInput.value = ''; renderSearchResults('');
+    setTimeout(function () { searchInput.focus(); }, 0);
+  }
+  function closeSearch() {
+    if (!searchModal.classList.contains('open')) return;
+    searchModal.classList.remove('open'); hideScrimIfNothingOpen();
+  }
+  function renderSearchResults(qraw) {
+    var q = qraw.trim().toLowerCase();
+    searchResults.innerHTML = '';
+    if (!q) { searchResults.innerHTML = '<div class="sr-empty">Type to search board names and card content.</div>'; return; }
+    var hits = [];
+    boards.forEach(function (b) {
+      if (b.name.toLowerCase().indexOf(q) !== -1) hits.push({ board: b, card: null, snippet: '(board name)' });
+      (b.cards || []).forEach(function (c) {
+        var src = (c.q && c.q.toLowerCase().indexOf(q) !== -1) ? c.q : ((c.a && c.a.toLowerCase().indexOf(q) !== -1) ? c.a : null);
+        if (!src) return;
+        var idx = src.toLowerCase().indexOf(q);
+        var start = Math.max(0, idx - 30), end = Math.min(src.length, idx + q.length + 50);
+        hits.push({ board: b, card: c, snippet: (start > 0 ? '…' : '') + src.slice(start, end) + (end < src.length ? '…' : '') });
+      });
+    });
+    if (!hits.length) { searchResults.innerHTML = '<div class="sr-empty">No matches.</div>'; return; }
+    hits.slice(0, 60).forEach(function (h) {
+      var row = document.createElement('div');
+      row.className = 'sr-row';
+      row.innerHTML = '<div class="sr-board"></div><div class="sr-snip"></div>';
+      row.querySelector('.sr-board').textContent = h.board.name;
+      row.querySelector('.sr-snip').textContent = h.snippet;
+      row.addEventListener('click', function () {
+        closeSearch();
+        switchTo(h.board);
+        if (h.card && UI.mode === 'node') centerOnCard(h.card);
+      });
+      searchResults.appendChild(row);
+    });
+  }
+  searchInput.addEventListener('input', function () { renderSearchResults(searchInput.value); });
+  document.getElementById('nSearch').addEventListener('click', openSearch);
+
+  // ---------- settings: a real (small) panel instead of a dead stub ----------
+  var PROFILE_KEY = 'spatialBoard.profile.v1';
+  var profile = { name: 'You', voice: '' };
+  (function loadProfile() {
+    try {
+      var raw = localStorage.getItem(PROFILE_KEY);
+      if (raw) { var p = JSON.parse(raw); if (p && typeof p === 'object') profile = { name: p.name || 'You', voice: p.voice || '' }; }
+    } catch (e) { /* ignore, use defaults */ }
+  })();
+  function saveProfile() {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) { /* not critical */ }
+  }
+  function applyProfile() { document.getElementById('whoname').textContent = profile.name || 'You'; }
+
+  var settingsModal = document.getElementById('settingsModal');
+  var setName = document.getElementById('setName'), setVoice = document.getElementById('setVoice');
+  function openSettings() {
+    setName.value = profile.name || ''; setVoice.value = profile.voice || '';
+    settingsModal.style.display = 'block'; showScrim();
+    setTimeout(function () { setName.focus(); }, 0);
+  }
+  function closeSettings() {
+    if (settingsModal.style.display !== 'block') return;
+    settingsModal.style.display = 'none'; hideScrimIfNothingOpen();
+  }
+  setName.addEventListener('input', function () { profile.name = setName.value; applyProfile(); saveProfile(); });
+  setVoice.addEventListener('input', function () { profile.voice = setVoice.value.trim(); saveProfile(); });
+  document.getElementById('setClose').addEventListener('click', closeSettings);
+  document.getElementById('setClear').addEventListener('click', async function () {
+    var ok = await askConfirm('Erase every board saved in this browser? This can\'t be undone — use Export board (.json) first if you want a backup.', 'Erase everything');
+    if (!ok) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    location.reload();
+  });
+  document.getElementById('settings').addEventListener('click', openSettings);
+  applyProfile();
+
+  // ---------- linear: a chat, not a lens onto a board ----------
+  var TOP_PAD = 26, BOT_ROOM = 118, ROW_GAP = 4;
+
+  // linear order: top-level cards by flat number, and each card immediately
+  // followed by its children (5, 5-1, 5-2, 6, …). driven by parent links, so
+  // linear is still reflecting a relationship you made, not inventing an order.
+  function ordered_() {
+    var tops = B.cards.filter(function (c) { return c.parent == null; })
+                      .sort(function (a, b) { return a.n - b.n; });
+    var out = [];
+    function push(c) {
+      out.push(c);
+      B.cards.filter(function (k) { return k.parent === c.id; })
+             .sort(function (a, b) { return a.sub - b.sub; })
+             .forEach(push);
+    }
+    tops.forEach(push);
+    return out;
+  }
+  // depth for indentation in linear (0 = top-level, 1 = 5-1, 2 = 5-1-… if ever)
+  function depth(c) { var d = 0, p = c; while (p && p.parent != null) { d++; p = byId(p.parent); } return d; }
+  // to stack a new child under the parent's existing children, find the lowest
+  // card in the parent's subtree by y (so siblings queue downward)
+  function lastDescendantOrSelf(parent) {
+    var kids = B.cards.filter(function (k) { return k.parent === parent.id; });
+    if (!kids.length) return parent;
+    return kids.reduce(function (lo, k) { return (k.y + k.h) > (lo.y + lo.h) ? k : lo; }, parent);
+  }
+  var LINEAR_INDENT = 40;   // px per depth level in linear
+  function layoutLinear() {
+    var o = ordered_(), y = 0, map = {};
+    for (var i = 0; i < o.length; i++) {
+      var ind = depth(o[i]) * LINEAR_INDENT;
+      map[o[i].id] = { x: -LINEAR_W / 2 + ind, y: y, indent: ind };
+      y += o[i].el.offsetHeight + ROW_GAP;
+    }
+    return { map: map, h: y };
+  }
+  function contentHeight() { return layoutLinear().h; }
+  function maxScroll(extra) {
+    return Math.max(0, TOP_PAD + contentHeight() + (extra || 0) + BOT_ROOM - SR.h);
+  }
+  function clampScroll() { B.scroll = Math.min(maxScroll(0), Math.max(0, B.scroll)); }
+  function scrollToBottom() { B.scroll = maxScroll(0); draw(); }
+
+  function draw() {
+    var LIN = UI.mode === 'linear' ? layoutLinear() : null;
+    if (LIN) {
+      world.style.transform = 'translate(' + (SR.w / 2) + 'px,' + (TOP_PAD - B.scroll) + 'px) scale(1)';
+    } else {
+      world.style.transform = 'translate(' + B.view.x + 'px,' + B.view.y + 'px) scale(' + B.view.z + ')';
+    }
+    for (var i = 0; i < B.cards.length; i++) {
+      var c = B.cards[i];
+      var p = LIN ? LIN.map[c.id] : { x: c.x, y: c.y };
+      c.el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+      if (LIN) c.el.style.width = (LINEAR_W - (p.indent || 0)) + 'px';
+      else if (c.el.style.width !== c.w + 'px') c.el.style.width = c.w + 'px';
+      c.el.classList.toggle('is-last', c.id === B.lastId && UI.mode === 'node');
+      c.el.classList.toggle('child', c.parent != null);
+      c.el.classList.toggle('inject-target', injectTarget && c.id === injectTarget.id);
+    }
+    emptyEl.style.display = B.cards.length ? 'none' : 'block';
+    document.getElementById('util').style.display = UI.mode === 'linear' ? 'none' : 'flex';
+    if (LIN) renderRail(LIN);
+    drawThread(); drawLinks(LIN); drawDots();
+    document.getElementById('zoom').textContent = Math.round(B.view.z * 100) + '%';
+  }
+
+  // one mark per question, in board order. clicking one scrolls to it.
+  var rail = document.getElementById('rail');
+  function renderRail(LIN) {
+    var o = ordered_();
+    var key = B.id + ':' + o.length;
+    if (rail.getAttribute('data-k') !== key) {
+      rail.setAttribute('data-k', key);
+      rail.innerHTML = '';
+      o.forEach(function (c) {
+        var d = document.createElement('div');
+        d.className = 'rl';
+        d.title = c.q;
+        d.addEventListener('click', function () { jumpTo(c); });
+        rail.appendChild(d);
+      });
+    }
+    var act = -1;
+    for (var i = 0; i < o.length; i++) if (LIN.map[o[i].id].y - 12 <= B.scroll) act = i;
+    if (act < 0) act = 0;
+    for (var j = 0; j < rail.children.length; j++) rail.children[j].classList.toggle('on', j === act);
+  }
+  function jumpTo(c) {
+    var LIN = layoutLinear();
+    B.scroll = Math.min(maxScroll(0), Math.max(0, LIN.map[c.id].y));
+    draw();
+  }
+
+  function drawThread() {
+    if (!UI.thread || UI.mode === 'linear' || B.cards.length < 2) { threadEl.setAttribute('points', ''); return; }
+    threadEl.setAttribute('points', ordered_().map(function (c) {
+      return (c.x + c.w / 2) + ',' + (c.y + c.h / 2);
+    }).join(' '));
+  }
+
+  // ================= links =================
+  var linksSvg = document.getElementById('links');
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var linkUid = 0, selLink = null, linking = null;
+
+  // anchor point on a card side, in world coords
+  function sidePoint(c, side) {
+    var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+    if (side === 't') return { x: cx, y: c.y };
+    if (side === 'b') return { x: cx, y: c.y + c.h };
+    if (side === 'l') return { x: c.x, y: cy };
+    return { x: c.x + c.w, y: cy };            // r
+  }
+  // pick the pair of sides that face each other, so the curve looks intentional
+  function facingSides(a, b) {
+    var ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
+    if (Math.abs(bx - ax) >= Math.abs(by - ay)) return bx >= ax ? ['r', 'l'] : ['l', 'r'];
+    return by >= ay ? ['b', 't'] : ['t', 'b'];
+  }
+  function curve(p1, p2, s1) {
+    var dx = Math.abs(p2.x - p1.x), dy = Math.abs(p2.y - p1.y);
+    var k = Math.max(40, (s1 === 'l' || s1 === 'r' ? dx : dy) * 0.4);
+    var c1 = { x: p1.x, y: p1.y }, c2 = { x: p2.x, y: p2.y };
+    if (s1 === 'l') c1.x -= k; else if (s1 === 'r') c1.x += k;
+    else if (s1 === 't') c1.y -= k; else c1.y += k;
+    // second control mirrors toward the far card
+    if (s1 === 'l' || s1 === 'r') c2.x += (p2.x >= p1.x ? -k : k);
+    else c2.y += (p2.y >= p1.y ? -k : k);
+    return 'M' + p1.x + ',' + p1.y + ' C' + c1.x + ',' + c1.y + ' ' + c2.x + ',' + c2.y + ' ' + p2.x + ',' + p2.y;
+  }
+
+  function drawLinks(LIN) {
+    linksSvg.innerHTML = '';
+    if (UI.mode === 'linear') { renderLinkRefs(); return; }
+    B.links.forEach(function (lk) {
+      var a = byId(lk.a), b = byId(lk.b);
+      if (!a || !b) return;
+      var sides = facingSides(a, b);
+      var p1 = sidePoint(a, sides[0]), p2 = sidePoint(b, sides[1]);
+      var d = curve(p1, p2, sides[0]);
+      var hit = document.createElementNS(SVGNS, 'path');
+      hit.setAttribute('d', d); hit.setAttribute('class', 'hit');
+      hit.addEventListener('pointerdown', function (e) { e.stopPropagation(); openLinkEdit(lk, e); });
+      linksSvg.appendChild(hit);
+      var path = document.createElementNS(SVGNS, 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('class', selLink === lk ? 'sel' : '');
+      linksSvg.appendChild(path);
+      if (lk.word) {
+        var mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        var t = document.createElementNS(SVGNS, 'text');
+        t.setAttribute('x', mx); t.setAttribute('y', my);
+        t.setAttribute('class', 'llabel');
+        t.textContent = lk.word;
+        t.addEventListener('pointerdown', function (e) { e.stopPropagation(); openLinkEdit(lk, e); });
+        linksSvg.appendChild(t);
+      }
+    });
+    // the link currently being dragged
+    if (linking && linking.cur) {
+      var sp = sidePoint(byId(linking.from), linking.side);
+      var path2 = document.createElementNS(SVGNS, 'path');
+      path2.setAttribute('d', curve(sp, linking.cur, linking.side));
+      path2.setAttribute('class', 'sel');
+      path2.setAttribute('stroke-dasharray', '5 5');
+      linksSvg.appendChild(path2);
+    }
+  }
+
+  // linear: each linked card names its partners and the bridge word
+  function renderLinkRefs() {
+    B.cards.forEach(function (c) {
+      var ref = c.el.querySelector('.linkref');
+      var mine = B.links.filter(function (l) { return l.a === c.id || l.b === c.id; });
+      if (!mine.length) { ref.textContent = ''; return; }
+      // group by bridge word so the label stays attached to the right numbers
+      var byWord = {};
+      mine.forEach(function (l) {
+        var other = byId(l.a === c.id ? l.b : l.a);
+        if (!other) return;
+        var key = l.word || '';
+        (byWord[key] = byWord[key] || []).push(label(other));
+      });
+      var parts = Object.keys(byWord).map(function (w) {
+        var nums = byWord[w].sort(cmpLabel).join(', ');
+        return w ? ('connected to ' + nums + ' — “' + w + '”') : ('connected to ' + nums);
+      });
+      ref.textContent = parts.join('   ·   ');
+    });
+  }
+  // sort labels like "5", "5-1", "6" in a sensible order
+  function cmpLabel(x, y) {
+    var xs = String(x).split('-').map(Number), ys = String(y).split('-').map(Number);
+    for (var i = 0; i < Math.max(xs.length, ys.length); i++) {
+      var a = xs[i] == null ? -1 : xs[i], b = ys[i] == null ? -1 : ys[i];
+      if (a !== b) return a - b;
+    }
+    return 0;
+  }
+
+  function startLink(e, c, side) {
+    if (UI.mode === 'linear') return;
+    UI.dragging = true;
+    linking = { from: c.id, side: side, cur: toWorld(ex(e), ey(e)) };
+    window.addEventListener('pointermove', onLinkMove);
+    window.addEventListener('pointerup', endLink);
+  }
+  function onLinkMove(e) {
+    if (!linking) return;
+    linking.cur = toWorld(ex(e), ey(e));
+    draw();
+  }
+  function endLink(e) {
+    window.removeEventListener('pointermove', onLinkMove);
+    window.removeEventListener('pointerup', endLink);
+    UI.dragging = false;
+    var target = cardAt(ex(e), ey(e));
+    if (linking && target && target.id !== linking.from && !linkExists(linking.from, target.id)) {
+      var lk = { id: ++linkUid, a: linking.from, b: target.id, word: '', context: false };
+      B.links.push(lk);
+      linking = null;
+      draw();
+      openLinkEditById(lk);          // let you name it right away
+      return;
+    }
+    linking = null; draw();
+  }
+  function linkExists(a, b) {
+    return B.links.some(function (l) {
+      return (l.a === a && l.b === b) || (l.a === b && l.b === a);
+    });
+  }
+  function cardAt(sx, sy) {
+    var w = toWorld(sx, sy);
+    for (var i = B.cards.length - 1; i >= 0; i--) {
+      var c = B.cards[i];
+      if (w.x >= c.x && w.x <= c.x + c.w && w.y >= c.y && w.y <= c.y + c.h) return c;
+    }
+    return null;
+  }
+
+  // ---- label / context editor ----
+  var linkedit = document.getElementById('linkedit');
+  var linkword = document.getElementById('linkword');
+  var linkctx = document.getElementById('linkctx');
+  var editingLink = null;
+  function openLinkEditById(lk) {
+    var a = byId(lk.a);
+    var p = a ? toScreen(a.x + a.w / 2, a.y + a.h / 2) : { x: SR.w / 2, y: SR.h / 2 };
+    openLinkEditAt(lk, SR.left + p.x, SR.top + p.y);
+  }
+  function openLinkEdit(lk, e) { openLinkEditAt(lk, e.clientX, e.clientY); }
+  function openLinkEditAt(lk, cx, cy) {
+    editingLink = lk; selLink = lk; draw();
+    linkword.value = lk.word || '';
+    linkctx.checked = !!lk.context;
+    linkedit.style.left = Math.min(window.innerWidth - 266, cx) + 'px';
+    linkedit.style.top = Math.min(window.innerHeight - 110, cy) + 'px';
+    linkedit.classList.add('open');
+    linkword.focus(); linkword.select();
+  }
+  function closeLinkEdit() {
+    if (editingLink) editingLink.word = linkword.value.trim();
+    editingLink = null; selLink = null;
+    linkedit.classList.remove('open');
+    draw();
+  }
+  linkword.addEventListener('input', function () { if (editingLink) { editingLink.word = linkword.value.trim(); draw(); } });
+  linkword.addEventListener('keydown', function (e) { if (e.key === 'Enter') closeLinkEdit(); if (e.key === 'Escape') closeLinkEdit(); });
+  linkctx.addEventListener('change', function () { if (editingLink) editingLink.context = linkctx.checked; });
+  document.getElementById('linkdel').addEventListener('click', function () {
+    if (!editingLink) return;
+    B.links = B.links.filter(function (l) { return l !== editingLink; });
+    editingLink = null; selLink = null;
+    linkedit.classList.remove('open'); draw();
+  });
+  window.addEventListener('pointerdown', function (e) {
+    if (linkedit.classList.contains('open') && !linkedit.contains(e.target) &&
+        !(e.target.closest && e.target.closest('#links'))) closeLinkEdit();
+  });
+
+  function drawDots() {
+    var w = dots.width = Math.max(1, Math.round(SR.w));
+    var h = dots.height = Math.max(1, Math.round(SR.h));
+    dctx.clearRect(0, 0, w, h);
+    if (UI.mode === 'linear') return;      // a chat has no canvas behind it
+    var sp = 48 * B.view.z;
+    if (sp < 12) return;
+    var ox = ((B.view.x % sp) + sp) % sp, oy = ((B.view.y % sp) + sp) % sp;
+    dctx.fillStyle = '#dddcda';   // ~5% darker than --bg, not a leftover dark-theme black
+    for (var x = ox - sp; x < w; x += sp) for (var y = oy - sp; y < h; y += sp) dctx.fillRect(x, y, 1.5, 1.5);
+  }
+
+  // ---------- camera ----------
+  function fullyVisible(c) {
+    var p = toScreen(c.x, c.y);
+    return p.x >= EDGE_PAD && p.y >= EDGE_PAD &&
+           p.x + c.w * B.view.z <= SR.w - EDGE_PAD &&
+           p.y + c.h * B.view.z <= SR.h - 130;
+  }
+  function maybeFollow(c) {
+    if (UI.dragging || fullyVisible(c)) return;
+    var p = toScreen(c.x, c.y), dx = 0, dy = 0;
+    var right = p.x + c.w * B.view.z, bottom = p.y + c.h * B.view.z;
+    if (right > SR.w - EDGE_PAD) dx = (SR.w - EDGE_PAD) - right;
+    if (p.x < EDGE_PAD) dx = EDGE_PAD - p.x;
+    if (bottom > SR.h - 130) dy = (SR.h - 130) - bottom;
+    if (p.y < EDGE_PAD) dy = EDGE_PAD - p.y;
+    panBy(dx, dy);
+  }
+  function panBy(dx, dy) {
+    var sx = B.view.x, sy = B.view.y, t0 = performance.now(), D = 380;
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3);
+      B.view.x = sx + dx * e; B.view.y = sy + dy * e;
+      draw();
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  // ---------- drag ----------
+  var drag = null;
+  function startDrag(e, c) {
+    if (UI.mode === 'linear') return;
+    e.stopPropagation();
+    UI.dragging = true;
+    c.el.classList.add('grabbed');
+    var st = toScreen(c.x, c.y);
+    drag = { c: c, dx: ex(e) - st.x, dy: ey(e) - st.y };
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', endDrag);
+  }
+  function onDragMove(e) {
+    if (!drag) return;
+    var w = toWorld(ex(e) - drag.dx, ey(e) - drag.dy);
+    drag.c.x = w.x; drag.c.y = w.y;
+    drag.c.el.classList.toggle('blocked',
+      collides({ x: w.x, y: w.y, w: drag.c.w, h: drag.c.h }, drag.c.id));
+    draw();
+  }
+  function endDrag() {
+    if (drag) {
+      var c = drag.c;
+      c.el.classList.remove('grabbed', 'blocked');
+      var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
+      if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y);
+    }
+    drag = null; UI.dragging = false;
+    scheduleSave();
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', endDrag);
+  }
+  function settle(c, tx, ty) {
+    var sx = c.x, sy = c.y, t0 = performance.now(), D = 220;
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3);
+      c.x = sx + (tx - sx) * e; c.y = sy + (ty - sy) * e;
+      draw();
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  // ---------- pan / zoom ----------
+  // A single finger (or the mouse) pans, same as before. A second finger
+  // landing on the canvas switches to pinch: distance between the two
+  // touches drives zoom, their midpoint drives pan, both anchored so the
+  // point under your fingers stays under your fingers — the same
+  // zoom-around-a-point math the wheel handler below uses, just re-anchored
+  // every frame to the pinch midpoint instead of the cursor.
+  var pan = null;
+  var touches = new Map();   // pointerId -> last {x, y}, active canvas touches only
+  var pinch = null;          // {dist, z0} snapshot from the moment the 2nd finger landed
+  function touchDist() {
+    var p = Array.from(touches.values());
+    return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+  }
+  function touchMid() {
+    var p = Array.from(touches.values());
+    return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+  }
+  stage.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('.card') || e.target.closest('#composer') ||
+        e.target.closest('#bar') || e.target.closest('#util') || e.target.closest('#flight') ||
+        e.target.closest('#links') || e.target.closest('#linkedit')) return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size >= 2 && UI.mode === 'node') {
+      pan = null;
+      pinch = { dist: touchDist(), z0: B.view.z };
+    } else if (touches.size === 1) {
+      pan = { x: e.clientX, y: e.clientY };
+    }
+    stage.classList.add('panning'); UI.dragging = true;
+    window.addEventListener('pointermove', onPan);
+    window.addEventListener('pointerup', endPan);
+    window.addEventListener('pointercancel', endPan);
+  });
+  function onPan(e) {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinch && touches.size >= 2) {
+      var mid = touchMid(), dist = touchDist();
+      var z = Math.min(2.5, Math.max(0.12, pinch.z0 * (dist / (pinch.dist || 1))));
+      var k = z / B.view.z;
+      var mx = ex({ clientX: mid.x, clientY: mid.y }), my = ey({ clientX: mid.x, clientY: mid.y });
+      B.view.x = mx - (mx - B.view.x) * k;
+      B.view.y = my - (my - B.view.y) * k;
+      B.view.z = z; draw();
+      return;
+    }
+
+    if (!pan) return;
+    if (UI.mode === 'linear') {
+      B.scroll -= e.clientY - pan.y;       // vertical only. no sideways drift.
+      clampScroll();
+    } else {
+      B.view.x += e.clientX - pan.x; B.view.y += e.clientY - pan.y;
+    }
+    pan = { x: e.clientX, y: e.clientY }; draw();
+  }
+  function endPan(e) {
+    if (e && touches.has(e.pointerId)) touches.delete(e.pointerId);
+    if (touches.size >= 2) {
+      // still 2+ fingers down (a 3rd joined, or one of two lifted and
+      // another was already there) — re-anchor pinch from here, no jump
+      pinch = { dist: touchDist(), z0: B.view.z };
+    } else if (touches.size === 1) {
+      // down to one finger — resume a plain pan from its current position
+      pinch = null;
+      var last = Array.from(touches.values())[0];
+      pan = { x: last.x, y: last.y };
+    } else {
+      pinch = null; pan = null; UI.dragging = false; stage.classList.remove('panning');
+      window.removeEventListener('pointermove', onPan);
+      window.removeEventListener('pointerup', endPan);
+      window.removeEventListener('pointercancel', endPan);
+    }
+  }
+
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    if (UI.mode === 'linear') {            // scrolls. doesn't zoom. it's a chat.
+      B.scroll += e.deltaY;
+      clampScroll(); draw();
+      return;
+    }
+    var f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.012 : 0.0022));
+    var z = Math.min(2.5, Math.max(0.12, B.view.z * f)), k = z / B.view.z;
+    var mx = ex(e), my = ey(e);
+    B.view.x = mx - (mx - B.view.x) * k;
+    B.view.y = my - (my - B.view.y) * k;
+    B.view.z = z; draw();
+  }, { passive: false });
+
+  // ---------- the loop ----------
+  // when set, the next committed exchange is injected as a child of this card
+  // (a sub-thread: 5-1, 5-2…). cleared after one use or on cancel.
+  var injectTarget = null;
+  function setInject(c) {
+    injectTarget = c;
+    document.body.classList.toggle('injecting', !!c);
+    if (c) {
+      input.placeholder = 'follow-up under ' + label(c) + ' — Esc to cancel';
+      input.focus();
+    } else {
+      input.placeholder = 'Ask anything — tap the mic to speak';
+      clearQuote();   // injectTarget and the pending quote always live and die together
+    }
+    draw();
+  }
+
+  // ---------- quote-and-ask: select text in a card's answer, ask about it ----------
+  // Reuses injectTarget/setInject for the nesting — a quoted question lands as a
+  // linked child of the card it was selected from, same as "Ask a follow-up".
+  var pendingQuote = null;
+  var quotePop = document.getElementById('quotePop');
+  var quotePopBtn = document.getElementById('quotePopBtn');
+  var quoteChip = document.getElementById('quoteChip');
+  var quoteChipText = document.getElementById('quoteChipText');
+  var quoteChipX = document.getElementById('quoteChipX');
+
+  function hideQuotePop() { quotePop.classList.remove('show'); }
+
+  function clearQuote() {
+    pendingQuote = null;
+    quoteChip.classList.remove('show');
+    quoteChipText.textContent = '';
+  }
+
+  function showQuoteChip(text) {
+    pendingQuote = text;
+    var shown = text.length > 220 ? text.slice(0, 220).trim() + '…' : text;
+    quoteChipText.textContent = shown;
+    quoteChip.classList.add('show');
+  }
+
+  document.addEventListener('mouseup', function (e) {
+    if (composer.contains(e.target) || quotePop.contains(e.target)) return;
+    // selection isn't finalized until after mouseup — check on the next tick
+    setTimeout(function () {
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { hideQuotePop(); return; }
+      var text = sel.toString().trim();
+      if (!text) { hideQuotePop(); return; }
+      var anchorNode = sel.anchorNode;
+      var el = anchorNode && (anchorNode.nodeType === 1 ? anchorNode : anchorNode.parentElement);
+      var cardEl = el && el.closest && el.closest('.card');
+      var card = cardEl && byId(Number(cardEl.dataset.id));
+      if (!card) { hideQuotePop(); return; }
+      var rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (!rect || (!rect.width && !rect.height)) { hideQuotePop(); return; }
+      quotePop.style.left = Math.round(rect.left + rect.width / 2) + 'px';
+      quotePop.style.top = Math.round(rect.top - 8) + 'px';
+      quotePop.dataset.text = text;
+      quotePop.dataset.cardId = card.id;
+      quotePop.classList.add('show');
+    }, 0);
+  });
+
+  document.addEventListener('mousedown', function (e) {
+    if (quotePop.contains(e.target)) return;
+    hideQuotePop();
+  });
+
+  // a fresh selection, scroll, or canvas pan/zoom all invalidate the popover's position
+  document.addEventListener('scroll', hideQuotePop, true);
+  window.addEventListener('resize', hideQuotePop);
+
+  quotePopBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var text = quotePop.dataset.text || '';
+    var card = byId(Number(quotePop.dataset.cardId));
+    hideQuotePop();
+    if (!text || !card) return;
+    if (window.getSelection) window.getSelection().removeAllRanges();
+    setInject(card);
+    showQuoteChip(text);
+  });
+
+  quoteChipX.addEventListener('click', function () { setInject(null); });
+
+  // ---------- composer: grows with content, Shift+Enter for a newline ----------
+  var COMPOSER_MAX_H = 200;
+  function autoGrowInput() {
+    input.style.height = 'auto';
+    var h = Math.min(input.scrollHeight, COMPOSER_MAX_H);
+    input.style.height = h + 'px';
+    composer.classList.toggle('tall', input.scrollHeight > 40);
+  }
+  input.addEventListener('input', autoGrowInput);
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && injectTarget) { setInject(null); return; }
+    if (e.key !== 'Enter' || e.shiftKey) return;   // Shift+Enter: newline, like any real editor
+    e.preventDefault();
+    if (!input.value.trim() || UI.busy) return;
+    var text = input.value.trim();
+    if (pendingQuote) {
+      text = 'Re: "' + pendingQuote + '"\n\n' + text;
+    }
+    input.value = '';
+    autoGrowInput();
+    ask(text);
+  });
+
+  function ask(q) {
+    UI.busy = true;
+    if (!live) orb.classList.add('live');
+    flight.classList.remove('flying', 'done');
+    flight.style.transform = 'none'; flight.style.opacity = '1'; flight.style.display = 'block';
+    fq.textContent = q; fa.textContent = '';
+    positionFlight();
+
+    // board name comes from YOUR first question. never a summary.
+    if (B.cards.length === 0) {
+      B.name = q.length > 38 ? q.slice(0, 38).trim() + '…' : q;
+      renderRecents();
+    }
+
+    RESPOND(q, function (sofar) {
+      fa.textContent = sofar;
+      fa.scrollTop = fa.scrollHeight;
+      positionFlight();
+    }, function (full) {
+      flight.classList.add('done');
+      land(q, full);
+    });
+  }
+
+  function positionFlight() {
+    if (UI.mode === 'linear') {
+      // inline, at the bottom of the thread, pinned above the composer.
+      // no occlusion, nothing floating — it's just the next message arriving.
+      flight.classList.add('inline');
+      var lh = flight.offsetHeight;
+      B.scroll = maxScroll(lh + ROW_GAP);
+      flight.style.left = Math.round(SR.w / 2 - CARD_W / 2) + 'px';
+      flight.style.top = Math.round(TOP_PAD - B.scroll + contentHeight()) + 'px';
+      draw();
+      return;
+    }
+    flight.classList.remove('inline');
+    var h = flight.offsetHeight;
+    flight.style.left = Math.round((SR.w - FLIGHT_W) / 2) + 'px';
+    flight.style.top = Math.max(16, composer.offsetTop - h - 16) + 'px';
+  }
+
+  function land(q, a) {
+    var probe = sizeOf(q, a);
+    var tgt = injectTarget;
+    var c, p;
+    if (tgt) {
+      // child card: place directly under the parent (or its last child), linked
+      var anchor = lastDescendantOrSelf(tgt);
+      p = nearestFree({ x: anchor.x, y: anchor.y + anchor.h + PAD }, probe.w, probe.h, null);
+      c = addCard(q, a, p.x, p.y, { parent: tgt.id });
+      B.links.push({ id: ++linkUid, a: tgt.id, b: c.id, word: '', context: true, lineage: true });
+      setInject(null);
+    } else {
+      p = place(probe.w, probe.h);
+      c = addCard(q, a, p.x, p.y);
+    }
+    c.el.style.opacity = '0';
+    B.lastId = c.id;
+    draw();
+
+    if (UI.mode === 'linear') {
+      // nothing flies. it's already where it belongs.
+      flight.style.display = 'none';
+      c.el.style.opacity = '1';
+      if (!live) orb.classList.remove('live');
+      UI.busy = false;
+      scrollToBottom();
+      return;
+    }
+
+    var fl = parseFloat(flight.style.left), ft = parseFloat(flight.style.top);
+    var to = toScreen(c.x, c.y);
+    var k = (CARD_W / FLIGHT_W) * B.view.z;
+    flight.classList.add('flying');
+    flight.style.transform = 'translate(' + (to.x - fl) + 'px,' + (to.y - ft) + 'px) scale(' + k + ')';
+    flight.style.opacity = '0';
+
+    setTimeout(function () {
+      flight.style.display = 'none';
+      flight.classList.remove('flying');
+      flight.style.transform = 'none';
+      c.el.style.opacity = '1';
+      if (!live) orb.classList.remove('live');
+      UI.busy = false;
+      maybeFollow(c);
+    }, 400);
+  }
+
+  // ---------- images: upload, drag-drop, or paste one onto the board ----------
+  // Stored as a data URL in the card itself (no upload backend exists) —
+  // downscaled/recompressed client-side first so a normal photo doesn't
+  // blow past localStorage's ~5-10MB-per-origin quota on its own.
+  var MAX_IMG_DIM = 1400, IMG_JPEG_QUALITY = 0.82, IMG_KEEP_ORIGINAL_UNDER = 380000; // bytes, approx
+
+  function compressImage(dataUrl, cb) {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var approxBytes = dataUrl.length * 0.75;
+      if (approxBytes <= IMG_KEEP_ORIGINAL_UNDER && Math.max(w, h) <= MAX_IMG_DIM) {
+        cb(dataUrl, w, h); return;      // small enough already — keep the original (keeps PNG alpha etc.)
+      }
+      var scale = Math.min(1, MAX_IMG_DIM / Math.max(w, h));
+      var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+      cb(canvas.toDataURL('image/jpeg', IMG_JPEG_QUALITY), cw, ch);
+    };
+    img.onerror = function () { cb(null, 0, 0); };
+    img.src = dataUrl;
+  }
+
+  function addImageFromFile(file, worldPos) {
+    if (!file || file.type.indexOf('image/') !== 0) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      compressImage(reader.result, function (dataUrl, w, h) {
+        if (!dataUrl) { flashStatus("Couldn't read that image.", 'err', 3000); return; }
+        landImage(file.name, dataUrl, w, h, worldPos);
+      });
+    };
+    reader.onerror = function () { flashStatus("Couldn't read that image.", 'err', 3000); };
+    reader.readAsDataURL(file);
+  }
+
+  // places an image exactly like a landed Q&A card: right of the last card,
+  // under an injectTarget as a linked child if one is set, or at a specific
+  // drop point — same placement rule as everything else on the board.
+  function landImage(name, dataUrl, naturalW, naturalH, worldPos) {
+    var w = CARD_W;
+    var ratio = (naturalW && naturalH) ? (naturalH / naturalW) : 0.66;
+    var ah = Math.round(Math.min(MAX_AH, Math.max(MIN_AH, w * ratio)));
+    var estH = ah + 130;   // rough allowance for label/note/padding pre-measure
+    var tgt = injectTarget;
+    var ideal;
+    if (tgt) {
+      var anchor = lastDescendantOrSelf(tgt);
+      ideal = { x: anchor.x, y: anchor.y + anchor.h + PAD };
+    } else if (worldPos) {
+      ideal = worldPos;
+    } else {
+      var last = byId(B.lastId);
+      ideal = last ? { x: last.x + last.w + GAP, y: last.y } : { x: -w / 2, y: -100 };
+    }
+    var p = nearestFree(ideal, w, estH, null);
+    var opts = { img: dataUrl, imgW: naturalW, imgH: naturalH, w: w, ah: ah };
+    if (tgt) opts.parent = tgt.id;
+    var c = addCard(name, '', p.x, p.y, opts);
+    if (tgt) {
+      B.links.push({ id: ++linkUid, a: tgt.id, b: c.id, word: '', context: true, lineage: true });
+      setInject(null);
+    }
+    B.lastId = c.id;
+    draw();
+    if (UI.mode === 'linear') scrollToBottom(); else maybeFollow(c);
+  }
+
+  var attachBtn = document.getElementById('attach');
+  var attachFile = document.getElementById('attachFile');
+  attachBtn.addEventListener('click', function () { attachFile.click(); });
+  attachFile.addEventListener('change', function () {
+    Array.from(attachFile.files || []).forEach(function (f) { addImageFromFile(f); });
+    attachFile.value = '';
+  });
+
+  // drag a file from the Finder/Desktop straight onto the board
+  var dragDepth = 0;
+  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1; }
+  stage.addEventListener('dragenter', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); dragDepth++; stage.classList.add('dragover');
+  });
+  stage.addEventListener('dragover', function (e) { if (hasFiles(e)) e.preventDefault(); });
+  stage.addEventListener('dragleave', function () {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) stage.classList.remove('dragover');
+  });
+  stage.addEventListener('drop', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0; stage.classList.remove('dragover');
+    var files = Array.from((e.dataTransfer && e.dataTransfer.files) || [])
+      .filter(function (f) { return f.type.indexOf('image/') === 0; });
+    if (!files.length) return;
+    var world = toWorld(ex(e), ey(e));
+    files.forEach(function (f, i) { addImageFromFile(f, { x: world.x + i * 24, y: world.y + i * 24 }); });
+  });
+
+  // paste an image from the clipboard (screenshot, copied image, etc.)
+  window.addEventListener('paste', function (e) {
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    var files = [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image/') === 0) {
+        var f = items[i].getAsFile(); if (f) files.push(f);
+      }
+    }
+    if (!files.length) return;   // let normal text paste through untouched
+    e.preventDefault();
+    files.forEach(function (f) { addImageFromFile(f); });
+  });
+
+  // ---------- sidebar wiring ----------
+  document.getElementById('collapse').addEventListener('click', toggleRail);
+  document.getElementById('mark').addEventListener('click', function () {
+    if (document.body.classList.contains('rail')) toggleRail();
+  });
+  // mobile: the sidebar is off-canvas by default at this width (see the
+  // mobile media query), so it needs its own always-reachable opener —
+  // #collapse lives inside #side, which is invisible until opened.
+  document.getElementById('mobileMenuBtn').addEventListener('click', toggleRail);
+  document.getElementById('sideScrim').addEventListener('click', function () {
+    if (document.body.classList.contains('rail')) toggleRail();
+  });
+  function toggleRail() {
+    document.body.classList.toggle('rail');
+    var t0 = performance.now();
+    (function step(t) {
+      syncRect(); draw();
+      if (t - t0 < 300) requestAnimationFrame(step);
+    })(t0);
+  }
+  document.getElementById('nNew').addEventListener('click', function () {
+    // already sitting on a blank chat — don't stack up empty "Untitled"
+    // entries every time this gets clicked. Reuse it instead.
+    if (B && B.cards.length === 0) { flash(this); input.focus(); return; }
+    switchTo(newBoard('Untitled'));
+  });
+  // Library and Images aren't built features yet — say so instead of a
+  // silent no-op, since a dead click reads as broken rather than unbuilt.
+  // Search and Settings are real now (wired up further down).
+  ['nLibrary', 'nImages'].forEach(function (id) {
+    var label = id === 'nLibrary' ? 'Library' : 'Images';
+    document.getElementById(id).addEventListener('click', function () {
+      flash(this);
+      flashStatus(label + " isn't built yet — every board lives in the sidebar for now.", '', 2800);
+    });
+  });
+
+  // ---------- share + board menu ----------
+  var menu = document.getElementById('menu');
+  function flash(el) {
+    el.classList.add('on');
+    setTimeout(function () { el.classList.remove('on'); }, 140);
+  }
+  document.getElementById('dots3').addEventListener('click', function (e) {
+    e.stopPropagation();
+    document.getElementById('miPin').lastChild.textContent = B.pinned ? ' Unpin chat' : ' Pin chat';
+    menu.classList.toggle('open');
+  });
+  window.addEventListener('pointerdown', function (e) {
+    if (!menu.contains(e.target) && e.target.id !== 'dots3') menu.classList.remove('open');
+  });
+  document.getElementById('shareBtn').addEventListener('click', function () {
+    flash(this);
+    var btn = this;
+    var url = location.origin && location.origin.indexOf('http') === 0 ? location.href : 'https://spatial-board.onrender.com/board.html';
+    var title = B.name || 'Spatial board';
+    var text = 'Boards live in this browser only right now, so this link opens the app, not this exact board — ' +
+      'export it first (••• menu → Export board) if you want to hand someone the actual content.';
+    if (navigator.share) {
+      navigator.share({ title: title, text: text, url: url }).catch(function () {});
+    } else {
+      copyText(url, btn);
+      flashStatus('Link copied — ' + text, '', 4600);
+    }
+  });
+  document.getElementById('miPin').addEventListener('click', function () {
+    B.pinned = !B.pinned; renderRecents(); menu.classList.remove('open'); scheduleSave();
+  });
+  ['miFiles', 'miArchive'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () {
+      menu.classList.remove('open');
+    });
+  });
+  var miExport = document.getElementById('miExport');
+  if (miExport) miExport.addEventListener('click', function () {
+    exportBoardJSON(); menu.classList.remove('open');
+  });
+  document.getElementById('miDelete').addEventListener('click', function () {
+    menu.classList.remove('open');
+    deleteBoard(B);
+  });
+
+  // ---------- board chrome ----------
+  var mNodeBtn = document.getElementById('mNode'), mLinearBtn = document.getElementById('mLinear');
+  var barThumb = document.getElementById('barThumb');
+  function updateBarThumb() {
+    var b = UI.mode === 'linear' ? mLinearBtn : mNodeBtn;
+    barThumb.style.width = b.offsetWidth + 'px';
+    barThumb.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+  }
+  mNodeBtn.addEventListener('click', function () {
+    UI.mode = 'node'; this.classList.add('on');
+    document.body.classList.remove('linear');
+    mLinearBtn.classList.remove('on'); updateBarThumb(); draw();
+  });
+  mLinearBtn.addEventListener('click', function () {
+    UI.mode = 'linear'; this.classList.add('on');
+    document.body.classList.add('linear');
+    mNodeBtn.classList.remove('on'); updateBarThumb();
+    draw(); scrollToBottom();      // you open a chat at the newest message
+  });
+  document.getElementById('tThread').addEventListener('click', function () {
+    UI.thread = !UI.thread; this.classList.toggle('on', UI.thread); draw();
+  });
+  function centerOnCard(c) {
+    if (!c) return;
+    var p = renderPos(c);
+    B.view.x = SR.w / 2 - (p.x + c.w / 2) * B.view.z;
+    B.view.y = SR.h / 2 - (p.y + c.h / 2) * B.view.z;
+    draw();
+  }
+  document.getElementById('tHome').addEventListener('click', function () {
+    centerOnCard(byId(B.lastId));
+  });
+  window.addEventListener('resize', function () { syncRect(); draw(); updateBarThumb(); });
+
+  // ---------- THE SEAM ----------
+  // ================= voice =================
+  // Both modes talk to the local relay (relay.js) so the OpenAI key stays off
+  // this page. If the relay isn't running, voice is disabled and typing still
+  // works. The board doesn't know or care that input came from speech — Mode 1
+  // fills the composer, Mode 2 drives the same ask()/land() path as typing.
+  // When served from the relay (http://localhost:PORT) use same-origin calls.
+  // When opened straight from file:// the origin is 'null', so fall back to the
+  // known relay address.
+  var RELAY = (location.origin && location.origin.indexOf('http') === 0) ? location.origin : 'http://localhost:8787';
+  // OpenAI's Realtime API went GA in Aug 2025: the WebRTC SDP-exchange
+  // endpoint moved from /v1/realtime?model=... to /v1/realtime/calls (the
+  // model is now fixed server-side, baked into the ephemeral token /session
+  // mints — it no longer needs to travel as a query param here).
+  var REALTIME_URL = 'https://api.openai.com/v1/realtime/calls';
+
+  // status line above the composer. real messages, real errors.
+  var vstatus = document.getElementById('vstatus');
+  function setStatus(text, kind) {
+    // kind: '', 'connecting', 'listening', 'thinking', 'speaking', 'err'
+    vstatus.className = 'show' + (kind ? ' ' + kind : '');
+    var withDot = kind && kind !== 'err' && kind !== '';
+    vstatus.innerHTML = (withDot ? '<span class="dot"></span>' : '') + escapeHtml(text);
+  }
+  function clearStatus() { vstatus.className = ''; vstatus.textContent = ''; }
+  function flashStatus(text, kind, ms) {
+    setStatus(text, kind || '');
+    setTimeout(function () { if (!live) clearStatus(); }, ms || 3200);
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  function pickMime() {
+    var opts = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+    for (var i = 0; i < opts.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported(opts[i])) return opts[i];
+    return '';
+  }
+
+  // ======== Mode 1: dictation (ChatGPT-style) ========
+  // tap to start, tap to stop, transcribe into composer, edit before send,
+  // no model response until you press Enter. clear states throughout.
+  var dictate = document.getElementById('dictate');
+  var dictRec = null, dictChunks = [], dictStream = null;
+  var dictTimer = null, dictStartTs = 0;
+  // Live caption while recording, purely so it's obvious the mic is
+  // actually hearing you — NOT what gets submitted. The real transcript
+  // still comes from the more accurate Whisper pass in onDictStop below,
+  // same as before. Browser speech recognition is inconsistent across
+  // browsers (Chrome: good; Safari: partial; Firefox: none), so this is a
+  // progressive enhancement — no live caption support just means you see
+  // the plain timer, exactly like before.
+  var dictSpeechRec = null, dictLiveText = '';
+  function dictTick() {
+    var secs = Math.floor((Date.now() - dictStartTs) / 1000);
+    var mm = Math.floor(secs / 60), ss = secs % 60;
+    var clock = mm + ':' + (ss < 10 ? '0' : '') + ss;
+    if (dictLiveText) {
+      var shown = dictLiveText.length > 70 ? '…' + dictLiveText.slice(-70) : dictLiveText;
+      setStatus('"' + shown + '" — ' + clock + ' — tap the mic to stop', 'listening');
+    } else {
+      setStatus('Recording ' + clock + ' — tap the mic to stop', 'listening');
+    }
+  }
+  function stopDictTimer() { if (dictTimer) { clearInterval(dictTimer); dictTimer = null; } }
+  function startDictCaption() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;   // no live caption in this browser — timer-only, as before
+    try {
+      dictSpeechRec = new SR();
+      dictSpeechRec.continuous = true;
+      dictSpeechRec.interimResults = true;
+      dictSpeechRec.lang = navigator.language || 'en-US';
+      dictSpeechRec.onresult = function (e) {
+        var t = '';
+        for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        dictLiveText = t.trim();
+      };
+      dictSpeechRec.onerror = function () {};   // cosmetic only — never surfaces as a real error
+      dictSpeechRec.onend = function () {
+        // some browsers auto-stop after a pause mid-recording; keep it running
+        if (dictRec && dictRec.state === 'recording') { try { dictSpeechRec.start(); } catch (e) {} }
+      };
+      dictSpeechRec.start();
+    } catch (e) { dictSpeechRec = null; }
+  }
+  function stopDictCaption() {
+    if (dictSpeechRec) { try { dictSpeechRec.onend = null; dictSpeechRec.stop(); } catch (e) {} dictSpeechRec = null; }
+    dictLiveText = '';
+  }
+
+  dictate.addEventListener('click', function () {
+    if (dictRec && dictRec.state === 'recording') stopDictation();
+    else startDictation();
+  });
+
+  async function startDictation() {
+    if (dictRec) return;
+    setStatus('Requesting microphone…', 'connecting');
+    try {
+      dictStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      dictStream = null;
+      flashStatus('Microphone blocked: ' + (err && err.message ? err.message : err) + '. Allow mic access and retry.', 'err', 5000);
+      return;
+    }
+    try {
+      dictChunks = [];
+      dictRec = new MediaRecorder(dictStream, pickMime() ? { mimeType: pickMime() } : undefined);
+      dictRec.ondataavailable = function (e) { if (e.data && e.data.size) dictChunks.push(e.data); };
+      dictRec.onerror = function (e) {
+        flashStatus('Recording error: ' + (e.error && e.error.message ? e.error.message : 'unknown'), 'err', 5000);
+        cleanupDict();
+      };
+      dictRec.onstop = onDictStop;
+      dictRec.start();
+      dictate.classList.add('rec');
+      dictStartTs = Date.now();
+      startDictCaption();
+      dictTick();
+      dictTimer = setInterval(dictTick, 500);
+    } catch (err) {
+      flashStatus('Could not start recording: ' + (err && err.message ? err.message : err), 'err', 5000);
+      cleanupDict();
+    }
+  }
+
+  function stopDictation() {
+    if (dictRec && dictRec.state !== 'inactive') {
+      stopDictTimer();
+      stopDictCaption();
+      dictate.classList.remove('rec');
+      dictate.classList.add('busy');
+      setStatus('Processing — transcribing what you said…', 'thinking');
+      dictRec.stop();
+    }
+  }
+
+  async function onDictStop() {
+    var mime = (dictRec && dictRec.mimeType) || 'audio/webm';
+    if (dictStream) { dictStream.getTracks().forEach(function (t) { t.stop(); }); dictStream = null; }
+    var blob = new Blob(dictChunks, { type: mime });
+    dictRec = null;
+    if (!blob.size) { dictate.classList.remove('busy'); flashStatus('Nothing recorded — try again.', 'err', 3000); return; }
+    try {
+      var r = await fetch(RELAY + '/transcribe', { method: 'POST', headers: { 'Content-Type': mime }, body: blob });
+      if (!r.ok) {
+        var detail = await r.text().catch(function () { return ''; });
+        throw new Error('HTTP ' + r.status + (detail ? ' — ' + detail.slice(0, 160) : ''));
+      }
+      var text = (await r.text()).trim();
+      dictate.classList.remove('busy');
+      if (text) {
+        input.value = (input.value ? input.value.trim() + ' ' : '') + text;
+        autoGrowInput();
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        flashStatus('Transcribed — edit, then press Enter to send', '', 2600);
+      } else {
+        flashStatus('No speech detected.', 'err', 2600);
+      }
+    } catch (err) {
+      dictate.classList.remove('busy');
+      var m = String(err && err.message ? err.message : err);
+      var hint = /Failed to fetch|NetworkError/.test(m) ? ' — is relay.js running on ' + RELAY + '?' : '';
+      flashStatus('Transcription failed: ' + m + hint, 'err', 6000);
+    }
+  }
+  function cleanupDict() {
+    stopDictTimer();
+    stopDictCaption();
+    dictate.classList.remove('rec', 'busy');
+    if (dictStream) { dictStream.getTracks().forEach(function (t) { t.stop(); }); dictStream = null; }
+    dictRec = null;
+  }
+
+  // ======== Mode 2: continuous live conversation (ChatGPT Voice-style) ========
+  // tap the orb to connect. server-side VAD means you just talk — no tap per
+  // turn. the AI speaks back. you can interrupt. each completed exchange lands
+  // as one card. orb + status show connecting/listening/thinking/speaking/ended.
+  var live = null;                 // { pc, dc, stream, audioEl } while open
+  var liveQ = '', liveA = '';      // transcripts building for the current turn
+  var orbState = '';
+
+  function setOrb(state) {         // '', connecting, listening, thinking, speaking, err
+    orbState = state;
+    orb.className = state ? state : '';
+    orb.classList.toggle('live', !!live);
+    orb.setAttribute('data-t', live ? 'End Live Voice' : 'Start Live Voice');
+  }
+
+  orb.addEventListener('click', function () { if (live) stopLive('Ended.'); else startLive(); });
+
+  async function startLive() {
+    setOrb('connecting');
+    setStatus('Connecting…', 'connecting');
+    var stream, pc, token;
+    // 1) ephemeral token from relay
+    try {
+      var sres = await fetch(RELAY + '/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: (profile && profile.voice) || undefined })
+      });
+      if (!sres.ok) {
+        var d = await sres.text().catch(function () { return ''; });
+        throw new Error('session HTTP ' + sres.status + (d ? ' — ' + d.slice(0, 160) : ''));
+      }
+      var sess = await sres.json();
+      token = sess && sess.client_secret && sess.client_secret.value;
+      if (!token) throw new Error('relay returned no token (check OPENAI_API_KEY)');
+    } catch (err) {
+      failLive('Could not start session: ' + msg(err) + (isNet(err) ? ' — is relay.js running on ' + RELAY + '?' : ''));
+      return;
+    }
+    // 2) mic
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      failLive('Microphone blocked: ' + msg(err) + '. Allow mic access and retry.');
+      return;
+    }
+    // 3) webrtc to OpenAI
+    try {
+      pc = new RTCPeerConnection();
+      var audioEl = document.createElement('audio');
+      audioEl.autoplay = true;
+      pc.ontrack = function (e) { audioEl.srcObject = e.streams[0]; };
+      pc.onconnectionstatechange = function () {
+        if (!live) return;
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')
+          failLive('Connection ' + pc.connectionState + '.');
+      };
+      stream.getTracks().forEach(function (t) { pc.addTrack(t, stream); });
+
+      var dc = pc.createDataChannel('oai-events');
+      dc.onopen = function () { live = { pc: pc, dc: dc, stream: stream, audioEl: audioEl }; setOrb('listening'); setStatus('Listening — just speak', 'listening'); };
+      dc.onmessage = onLiveEvent;
+
+      var offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      var ans = await fetch(REALTIME_URL, {
+        method: 'POST', body: offer.sdp,
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/sdp' }
+      });
+      if (!ans.ok) {
+        var da = await ans.text().catch(function () { return ''; });
+        throw new Error('realtime HTTP ' + ans.status + (da ? ' — ' + da.slice(0, 160) : ''));
+      }
+      var answer = await ans.text();
+      await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+      liveQ = ''; liveA = '';
+      // live is set on dc.onopen
+      // safety: clean up the pieces if we never opened
+      setTimeout(function () {
+        if (!live) { try { stream.getTracks().forEach(function (t) { t.stop(); }); pc.close(); } catch (e) {} }
+      }, 8000);
+    } catch (err) {
+      try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      try { pc && pc.close(); } catch (e) {}
+      failLive('Voice connection failed: ' + msg(err));
+    }
+  }
+
+  function stopLive(note) {
+    if (!live) { setOrb(''); clearStatus(); return; }
+    try { live.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    try { live.dc.close(); live.pc.close(); } catch (e) {}
+    live = null; setOrb('');
+    if (note) flashStatus(note, '', 1800); else clearStatus();
+  }
+  function failLive(text) {
+    if (live) { try { live.stream.getTracks().forEach(function (t) { t.stop(); }); live.pc.close(); } catch (e) {} live = null; }
+    setOrb('err');
+    setStatus(text, 'err');
+    setTimeout(function () { if (!live) { orb.className = ''; clearStatus(); } }, 6000);
+  }
+
+  function onLiveEvent(ev) {
+    var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    switch (m.type) {
+      case 'input_audio_buffer.speech_started':
+        // you started talking. if the AI was speaking, that's an interruption:
+        // cut its audio and commit whatever it managed to say.
+        if (orbState === 'speaking') {
+          try { live.audioEl.pause(); } catch (e) {}
+          commitTurnIfAny(true);      // interrupted answers still land — verbatim
+          if (live && live.dc.readyState === 'open')
+            live.dc.send(JSON.stringify({ type: 'response.cancel' }));
+        }
+        setOrb('listening'); setStatus('Listening…', 'listening');
+        break;
+      case 'input_audio_buffer.speech_stopped':
+        setOrb('thinking'); setStatus('Thinking…', 'thinking');
+        break;
+      case 'conversation.item.input_audio_transcription.completed':
+        liveQ = (m.transcript || '').trim();
+        break;
+      case 'response.audio_transcript.delta':
+        if (orbState !== 'speaking') { setOrb('speaking'); setStatus('Speaking…', 'speaking'); }
+        liveA += m.delta || '';
+        break;
+      case 'response.done':
+        commitTurnIfAny();
+        if (live) { setOrb('listening'); setStatus('Listening — just speak', 'listening'); }
+        break;
+      case 'error':
+        failLive('Realtime error: ' + (m.error && m.error.message ? m.error.message : 'unknown'));
+        break;
+    }
+  }
+
+  function commitTurnIfAny(interrupted) {
+    var q = liveQ, a = liveA.trim();
+    liveQ = ''; liveA = '';
+    if (q || a) commitVoiceTurn(q, a, !!interrupted);
+  }
+
+  function msg(e) { return e && e.message ? e.message : String(e); }
+  function isNet(e) { return /Failed to fetch|NetworkError/.test(msg(e)); }
+
+  // the seam: a completed spoken exchange becomes a card, exactly like typing.
+  function commitVoiceTurn(question, answer, interrupted) {
+    if (B.cards.length === 0 && question) {
+      B.name = question.length > 38 ? question.slice(0, 38).trim() + '…' : question;
+      renderRecents();
+    }
+    // place directly — no #flight hijack, since voice has no in-flight card here
+    var probe = sizeOf(question, answer);
+    var p = place(probe.w, probe.h);
+    var c = addCard(question, answer, p.x, p.y, { interrupted: !!interrupted });
+    B.lastId = c.id;
+    draw();
+    if (UI.mode === 'linear') scrollToBottom();
+    else maybeFollow(c);
+  }
+
+  // ================= model: real backend, streamed =================
+  // POST /chat on the same origin (server.js) proxies to OpenAI so the API
+  // key never reaches the browser. Board history (this board's prior cards,
+  // in creation order) rides along so answers have real continuity.
+  function boardHistory(excludeId) {
+    return B.cards
+      .filter(function (c) { return c.id !== excludeId && c.a; })
+      .sort(function (a, b) { return a.t - b.t; })
+      .slice(-40)
+      .map(function (c) { return { q: c.q, a: c.a }; });
+  }
+
+  function RESPOND(q, onToken, onDone) {
+    var sofar = '';
+    var ctrl = new AbortController();
+    fetch(RELAY + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, history: boardHistory(null) }),
+      signal: ctrl.signal
+    }).then(async function (r) {
+      if (!r.ok || !r.body) {
+        var detail = '';
+        try { detail = (await r.json()).error; } catch (e) { try { detail = await r.text(); } catch (e2) {} }
+        throw new Error(detail || ('HTTP ' + r.status));
+      }
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      for (;;) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        sofar += decoder.decode(chunk.value, { stream: true });
+        onToken(sofar);
+      }
+      sofar += decoder.decode();
+      onDone(sofar || '(empty response)');
+    }).catch(function (err) {
+      var m = err && err.message ? err.message : String(err);
+      var hint = /Failed to fetch|NetworkError/.test(m) ? ' — is the server running (npm start) on ' + RELAY + '?' : '';
+      onDone((sofar ? sofar + '\n\n' : '') + '[error: ' + m + hint + ']');
+    });
+  }
+
+  // ---------- start ----------
+  syncRect();
+  (function boot() {
+    var saved = loadState();
+    if (saved) {
+      bid = saved.bid || 0; uid = saved.uid || 0; seq = saved.seq || 0; linkUid = saved.linkUid || 0;
+      boards = saved.boards.map(function (sb) {
+        return {
+          id: sb.id, name: sb.name, pinned: !!sb.pinned,
+          cards: (sb.cards || []).map(function (sc) {
+            return { id: sc.id, q: sc.q, a: sc.a, x: sc.x, y: sc.y,
+                     w: sc.w || CARD_W, ah: sc.ah || CARD_AH, h: 0, mini: !!sc.mini,
+                     el: null, interrupted: !!sc.interrupted,
+                     parent: sc.parent != null ? sc.parent : null,
+                     sub: sc.sub || 0, t: sc.t, n: sc.n, img: sc.img || null,
+                     imgW: sc.imgW || 0, imgH: sc.imgH || 0 };
+          }),
+          links: sb.links || [], nextN: sb.nextN || 1, lastId: sb.lastId || null,
+          view: sb.view || { x: SR.w / 2, y: SR.h / 2 - 60, z: 1 },
+          scroll: sb.scroll || 0
+        };
+      });
+      dedupeEmptyBoards();   // clean up any empty "Untitled" chats stacked up before this fix
+      var active = boards.filter(function (b) { return b.id === saved.activeBoardId; })[0] || boards[0];
+      switchTo(active);
+    } else {
+      var seed = newBoard('Untitled');
+      newBoard('Recruiter call preparation').pinned = true;
+      newBoard('Placement rules, camera behaviour');
+      newBoard('Does position mean anything');
+      switchTo(seed);
+    }
+  })();
+  draw();
+  updateBarThumb();
+  input.focus();
+})();
+</script>
