@@ -1,11 +1,13 @@
 // Spatial board — backend
 //
-// Three jobs, all thin wrappers around OpenAI so the API key never touches
+// Four jobs, all thin wrappers around OpenAI so the API key never touches
 // the browser:
 //   POST /chat        real answers for RESPOND() (streamed, replaces the
 //                      canned CANNED[] array in the client)
 //   POST /transcribe   Whisper transcription for the dictation mic
 //   POST /session      ephemeral Realtime token for the live-voice orb
+//   POST /tts          real speech for "Read out loud" (replaces the
+//                      browser's robotic built-in speechSynthesis voice)
 //
 // Run:
 //   cp .env.example .env   # fill in OPENAI_API_KEY
@@ -23,6 +25,9 @@ const { toFile } = require('openai/uploads');
 const PORT = process.env.PORT || 8787;
 const CHAT_MODEL = process.env.CHAT_MODEL || 'gpt-4o';
 const TRANSCRIBE_MODEL = process.env.TRANSCRIBE_MODEL || 'whisper-1';
+// Same family of natural voices as the live-conversation orb, just used for
+// one-shot "read this card aloud" playback instead of a two-way call.
+const TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
 // OpenAI's Realtime API went GA in August 2025 — the old preview alias
 // ('gpt-4o-realtime-preview') is on its way out. 'gpt-realtime' is the
 // current always-latest GA alias for the speech-to-speech model.
@@ -182,6 +187,36 @@ app.post('/transcribe', express.raw({ type: '*/*', limit: '25mb' }), async (req,
   }
 });
 
+// ------------------------------------------------------------------ /tts --
+// body: { text: string, voice?: string }
+// Real speech instead of the browser's built-in speechSynthesis — that
+// voice is a robotic system TTS engine, not a neural one, which is exactly
+// why "Read out loud" sounded nothing like the voice in a Realtime call (or
+// in ChatGPT/Claude's own apps). This is a one-shot request/response, not a
+// stream: the client wants the whole clip before it starts playback anyway,
+// so there's no benefit to chunking it and it keeps the client simpler.
+app.post('/tts', express.json({ limit: '200kb' }), async (req, res) => {
+  const { text, voice } = req.body || {};
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'missing "text" string' });
+  }
+  const requestedVoice = typeof voice === 'string' ? voice.trim() : '';
+  try {
+    const speech = await openai.audio.speech.create({
+      model: TTS_MODEL,
+      voice: requestedVoice || process.env.REALTIME_VOICE || 'marin',
+      input: text.slice(0, 4000),   // same practical cap as a card's answer length
+      format: 'mp3'
+    });
+    const buf = Buffer.from(await speech.arrayBuffer());
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(buf);
+  } catch (err) {
+    console.error('[board] /tts error:', err.message || err);
+    res.status(500).json({ error: 'tts failed: ' + (err.message || String(err)) });
+  }
+});
+
 // ---------------------------------------------------------------- /session --
 // mints a short-lived client secret so the browser can talk to the Realtime
 // API directly over WebRTC without ever seeing OPENAI_API_KEY.
@@ -209,7 +244,16 @@ app.post('/session', express.json({ limit: '10kb' }), async (req, res) => {
         session: {
           type: 'realtime',
           model: REALTIME_MODEL,
-          audio: { output: { voice: voice } }
+          audio: {
+            output: { voice: voice },
+            // Without this, the API never sends back a transcript of what
+            // the PERSON said — only the model's own spoken replies come
+            // through for free. That silently broke "save this live
+            // conversation as a card": every card landed with a real
+            // answer but a blank question, since the client's liveQ never
+            // had anything to fill it with.
+            input: { transcription: { model: 'gpt-4o-mini-transcribe' } }
+          }
         }
       })
     });
