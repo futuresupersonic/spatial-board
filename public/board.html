@@ -797,6 +797,39 @@
 
     .card { width: min(560px, 84vw); }
   }
+
+  /* ---------- context debug panel (temporary) ---------- */
+  #ctxbtn { color: var(--ink-faint); }
+  @media (max-width: 720px) { #ctxbtn { display: none; } }
+  #ctxpanel {
+    position: fixed; z-index: 480; right: 14px; top: 64px; bottom: 14px; width: 440px;
+    max-width: calc(100vw - 28px); display: none; flex-direction: column;
+    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 12px;
+    box-shadow: var(--shadow-pop); font-size: 12px; color: var(--ink-dim);
+  }
+  #ctxpanel.open { display: flex; }
+  #ctxpanel .ch { display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--edge); color: var(--ink); font-size: 12.5px; }
+  #ctxpanel .ch button { background: none; border: 0; color: var(--ink-dim); cursor: pointer; font-size: 15px; }
+  #ctxpanel .cl { max-height: 26%; overflow-y: auto; border-bottom: 1px solid var(--edge); }
+  #ctxpanel .ci { padding: 7px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  #ctxpanel .ci:hover { background: var(--card-hi); }
+  #ctxpanel .ci.sel { background: var(--q-bg); color: var(--ink); }
+  #ctxpanel .ci .cq { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  #ctxpanel .tag { font-size: 10.5px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--edge); color: var(--ink-faint); flex: none; }
+  #ctxpanel .cd { flex: 1; overflow-y: auto; padding: 10px 12px 14px; }
+  #ctxpanel h4 { margin: 12px 0 5px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  #ctxpanel h4:first-child { margin-top: 0; }
+  #ctxpanel .row { padding: 3px 0; line-height: 1.45; color: var(--ink-dim); }
+  #ctxpanel .row b { color: var(--ink); font-weight: 600; }
+  #ctxpanel .nots { color: #94620e; }
+  #ctxpanel pre { margin: 6px 0 0; padding: 9px 10px; background: var(--q-bg); border: 1px solid var(--edge);
+    border-radius: 8px; white-space: pre-wrap; word-break: break-word; color: var(--ink-dim);
+    font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 320px; overflow: auto; }
+  #ctxpanel .btns { display: flex; gap: 8px; margin-top: 8px; }
+  #ctxpanel .btns button { background: var(--q-bg); border: 1px solid var(--edge); color: var(--ink-dim);
+    font: inherit; font-size: 11.5px; padding: 4px 10px; border-radius: 7px; cursor: pointer; }
+  #ctxpanel .btns button:hover { color: var(--ink); }
 </style>
 
 <div id="sideScrim"></div>
@@ -870,6 +903,7 @@
   </div>
 
   <div id="share">
+    <button id="ctxbtn" title="Show the context sent to the model (Ctrl/Cmd+Shift+D)">ctx</button>
     <button id="shareBtn">
       <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V2.5"/><path d="M5.6 5.9L9 2.5l3.4 3.4"/><path d="M3.5 11v3.5a1 1 0 001 1h9a1 1 0 001-1V11"/></svg>
       <span class="lbl-full">Share</span>
@@ -988,6 +1022,8 @@
   <div class="sm-hint">Boards (including any uploaded images) are only saved in this browser's storage — there's no account or server-side copy. This permanently erases them here.</div>
   <div class="sm-row"><button id="setClose">Done</button></div>
 </div>
+
+<div id="ctxpanel"></div>
 
 <div id="linkedit">
   <input id="linkword" placeholder="bridge word (optional)" autocomplete="off">
@@ -2240,6 +2276,334 @@
   }, { passive: false });
 
   // ---------- the loop ----------
+  // <<CTX-BEGIN>> ----------------------------------------------------------
+  // CONTEXT PACKAGE. What the model is allowed to know when a question is asked.
+  //
+  // It is built ONLY from structure the user made on purpose:
+  //   - the card being followed up from, and its follow-up lineage (5 → 5-1 → …)
+  //   - links the user marked "use as context", with the bridge word they wrote
+  //   - a quoted passage
+  // Chronological history is a fallback, used only when the question is not
+  // anchored to a card. Position (x, y) is never read: where a card sits on the
+  // canvas cannot change what the model sees (rule 10).
+  var CTX = {
+    RECENT_UNANCHORED: 3,   // fallback history, only when nothing is anchored
+    LINEAGE_MAX: 6,         // nearest ancestors kept (the parent is always kept)
+    PRIOR_MAX: 6,           // earlier follow-ups under the same parent
+    LINK_DEPTH: 2,          // hops across context links, starting at the parent
+    LINK_MAX: 6,            // linked cards included in total
+    Q_CHARS: 600, A_CHARS: 1800, QUOTE_CHARS: 1500,
+    BUDGET_CHARS: 14000     // total card text sent; lowest-priority material drops first
+  };
+  function ctxClip(s, n) {
+    s = String(s == null ? '' : s);
+    return s.length > n ? s.slice(0, n).replace(/\s+$/, '') + ' …[truncated]' : s;
+  }
+
+  function buildContextPackage(question, activeCard, quote) {
+    var cards = B.cards, links = B.links || [];
+    var idx = {};
+    cards.forEach(function (c) { idx[c.id] = c; });
+    var anchor = (activeCard && idx[activeCard.id]) ? activeCard : null;
+    var reg = {};                    // label -> card, for cards that made it into the package
+    var included = {};               // card id -> true (de-duplication while walking)
+    var linkEdges = [];              // context links walked, kept for the topology
+    var dbg = { excluded: [], notes: [] };   // debug only: never sent to the model
+    var pkg = {
+      v: 1,
+      current: { question: String(question), followUpFrom: null, quote: null },
+      focus: { kind: 'none' },
+      lineage: [], priorFollowUps: [], links: [], recent: [],
+      structure: { nodes: [], edges: [] },
+      meta: { anchored: !!anchor, boardCards: cards.length, includedCards: 0,
+              usedChars: 0, budgetChars: CTX.BUDGET_CHARS, dropped: {} }
+    };
+    function drop(k, n) { pkg.meta.dropped[k] = (pkg.meta.dropped[k] || 0) + (n || 1); }
+    function snap(c, role) {
+      var o = { label: label(c), role: role,
+                q: c.img ? '[an uploaded image; its pixels are not visible to you]' : ctxClip(c.q, CTX.Q_CHARS),
+                a: ctxClip(c.a, CTX.A_CHARS) };   // for an image card, `a` is the person's own note
+      if (c.interrupted) o.interrupted = true;
+      if (c.detached) o.detached = true;
+      reg[o.label] = c; included[c.id] = true;
+      return o;
+    }
+
+    if (anchor) {
+      pkg.current.followUpFrom = label(anchor);
+
+      // lineage: ancestors oldest → nearest, then the parent (the card followed up from)
+      var chain = [], seen = {}, p = anchor;
+      seen[p.id] = true;
+      while (p.parent != null && idx[p.parent] && !seen[p.parent]) {
+        p = idx[p.parent]; seen[p.id] = true; chain.unshift(p);
+      }
+      if (chain.length > CTX.LINEAGE_MAX) {
+        drop('ancestors', chain.length - CTX.LINEAGE_MAX);
+        chain = chain.slice(chain.length - CTX.LINEAGE_MAX);
+      }
+      chain.forEach(function (c) { pkg.lineage.push(snap(c, 'ancestor')); });
+      pkg.lineage.push(snap(anchor, 'parent'));
+
+      // earlier follow-ups under the same parent, in the order they were asked
+      var kids = cards.filter(function (k) { return k.parent === anchor.id; })
+                      .sort(function (a, b) { return a.sub - b.sub; });
+      if (kids.length > CTX.PRIOR_MAX) {
+        drop('priorFollowUps', kids.length - CTX.PRIOR_MAX);
+        kids = kids.slice(kids.length - CTX.PRIOR_MAX);
+      }
+      kids.forEach(function (k) { pkg.priorFollowUps.push(snap(k, 'prior-followup')); });
+
+      // explicit context links, breadth-first from the parent. loops are cut by
+      // `included`; we only expand through cards newly added here, never through
+      // cards already present as lineage.
+      var adj = {};
+      links.forEach(function (l) {
+        if (l.lineage || !idx[l.a] || !idx[l.b]) return;   // follow-up links are lineage, handled above
+        (adj[l.a] = adj[l.a] || []).push(l);
+        (adj[l.b] = adj[l.b] || []).push(l);
+      });
+      var seenLink = {}, queue = [{ c: anchor, d: 0 }], linked = 0;
+      while (queue.length) {
+        var cur = queue.shift();
+        (adj[cur.c.id] || []).forEach(function (l) {
+          if (seenLink[l.id]) return;
+          var other = idx[l.a === cur.c.id ? l.b : l.a];
+          seenLink[l.id] = true;
+          if (!l.context) {
+            dbg.excluded.push({ card: label(other), from: label(cur.c), word: l.word || '',
+                                reason: 'link has "use as context" OFF' });
+            return;
+          }
+          if (cur.d >= CTX.LINK_DEPTH) {
+            dbg.excluded.push({ card: label(other), from: label(cur.c), word: l.word || '',
+                                reason: 'beyond link depth ' + CTX.LINK_DEPTH });
+            return;
+          }
+          linkEdges.push({ from: label(cur.c), to: label(other), word: l.word || '' });
+          if (included[other.id]) return;                  // already present: keep the edge only
+          if (linked >= CTX.LINK_MAX) {
+            drop('links'); dbg.notes.push('linked card ' + label(other) + ' skipped: LINK_MAX ' + CTX.LINK_MAX);
+            return;
+          }
+          linked++;
+          var s = snap(other, 'linked');
+          s.hop = cur.d + 1;
+          s.via = { from: label(cur.c), to: label(other), word: l.word || '' };
+          pkg.links.push(s);
+          queue.push({ c: other, d: cur.d + 1 });
+        });
+      }
+    } else {
+      // nothing anchored: fallback chronological history (creation order), oldest first
+      cards.slice()
+        .sort(function (a, b) { return (b.t || b.id) - (a.t || a.id); })
+        .slice(0, CTX.RECENT_UNANCHORED).reverse()
+        .forEach(function (c) { pkg.recent.push(snap(c, 'recent')); });
+    }
+
+    // focus: a quote outranks the card it came from
+    if (quote && quote.text) {
+      var qc = idx[quote.cardId];
+      pkg.current.quote = { text: ctxClip(quote.text, CTX.QUOTE_CHARS), fromCard: qc ? label(qc) : null };
+      pkg.focus = { kind: 'quote', quotedFrom: qc ? label(qc) : null };
+    } else if (anchor) {
+      pkg.focus = { kind: 'card', card: label(anchor) };
+    }
+
+    // budget: drop the lowest-priority material first. The question, the quote
+    // and the parent are never dropped.
+    function used() {
+      var n = pkg.current.question.length + (pkg.current.quote ? pkg.current.quote.text.length : 0);
+      [pkg.lineage, pkg.priorFollowUps, pkg.links, pkg.recent].forEach(function (a) {
+        a.forEach(function (c) { n += c.q.length + c.a.length; });
+      });
+      return n;
+    }
+    while (used() > CTX.BUDGET_CHARS) {
+      if (pkg.recent.length) { pkg.recent.shift(); drop('recent'); continue; }
+      var deep = -1;
+      pkg.links.forEach(function (c, i) { if (c.hop > 1) deep = i; });
+      if (deep >= 0) { pkg.links.splice(deep, 1); drop('links'); continue; }
+      if (pkg.links.length) { pkg.links.pop(); drop('links'); continue; }
+      if (pkg.priorFollowUps.length) { pkg.priorFollowUps.shift(); drop('priorFollowUps'); continue; }
+      if (pkg.lineage.length > 1) { pkg.lineage.shift(); drop('ancestors'); continue; }
+      break;
+    }
+
+    // topology: only what survived, so the model can see why each piece is here
+    var have = {}, nodes = [];
+    [pkg.lineage, pkg.priorFollowUps, pkg.links, pkg.recent].forEach(function (a) {
+      a.forEach(function (c) {
+        if (!have[c.label]) { have[c.label] = true; nodes.push({ label: c.label, role: c.role }); }
+      });
+    });
+    var edges = [];
+    nodes.forEach(function (n) {
+      var c = reg[n.label], pc = c && c.parent != null ? idx[c.parent] : null;
+      if (pc && have[label(pc)]) edges.push({ type: 'followup', from: label(pc), to: n.label });
+    });
+    linkEdges.forEach(function (e) {
+      if (have[e.from] && have[e.to]) edges.push({ type: 'link', from: e.from, to: e.to, word: e.word, context: true });
+    });
+    if (anchor) {
+      nodes.push({ label: 'this question', role: 'current' });
+      edges.push({ type: 'followup', from: label(anchor), to: 'this question' });
+    }
+    pkg.structure = { nodes: nodes, edges: edges };
+    pkg.meta.includedCards = Object.keys(have).length;
+    pkg.meta.usedChars = used();
+    dbg.notIncluded = cards.length - pkg.meta.includedCards;
+    pkg.debug = dbg;
+    return pkg;
+  }
+  // what actually goes over the wire: the package without the debug-only block
+  function ctxStrip(pkg) {
+    var o = JSON.parse(JSON.stringify(pkg));
+    delete o.debug;
+    return o;
+  }
+  // <<CTX-END>> ------------------------------------------------------------
+
+  // ---- context log + temporary debug panel ----
+  var CTX_LOG = [], ctxN = 0, ctxSel = null;
+  var ctxPanel = document.getElementById('ctxpanel'), ctxBtn = document.getElementById('ctxbtn');
+  function ctxRecord(question, pkg) {
+    var e = { n: ++ctxN, question: question, pkg: pkg, answeredBy: 'pending', error: null, rendered: null };
+    CTX_LOG.unshift(e);
+    if (CTX_LOG.length > 40) CTX_LOG.pop();
+    ctxSel = e;
+    try {
+      console.groupCollapsed('[context] #' + e.n + ' ' +
+        (pkg.meta.anchored ? 'follow-up from ' + pkg.current.followUpFrom : 'plain question') +
+        (pkg.current.quote ? ' + quote' : '') + ' — ' + question.slice(0, 60));
+      console.log('sent to the model:', ctxStrip(pkg));
+      console.log('debug only (not sent):', pkg.debug);
+      console.groupEnd();
+    } catch (err) {}
+    ctxRefresh();
+    return e;
+  }
+  function ctxRefresh() { if (ctxPanel.classList.contains('open')) renderCtxPanel(); }
+  function toggleCtx(force) {
+    var open = force == null ? !ctxPanel.classList.contains('open') : force;
+    ctxPanel.classList.toggle('open', open);
+    ctxBtn.classList.toggle('on', open);
+    if (open) renderCtxPanel();
+  }
+  ctxBtn.addEventListener('click', function () { toggleCtx(); });
+  window.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) { e.preventDefault(); toggleCtx(); }
+  });
+
+  function ctxRows(list, fmt) {
+    if (!list.length) return '<div class="row">none</div>';
+    return list.map(function (c) { return '<div class="row">' + fmt(c) + '</div>'; }).join('');
+  }
+  function ctxQ(s) { return '“' + escapeHtml(String(s).replace(/\s+/g, ' ').slice(0, 70)) + '”'; }
+  function ctxDetail(e) {
+    var p = e.pkg, m = p.meta, h = '';
+    h += '<h4>Summary</h4><div class="row">' +
+         (m.anchored ? '<b>Anchored</b> — follow-up from card <b>' + escapeHtml(p.current.followUpFrom) + '</b>'
+                     : '<b>Plain question</b> — not anchored to a card') +
+         (p.current.quote ? ' · quote from <b>' + escapeHtml(p.current.quote.fromCard || '?') + '</b>' : '') + '</div>' +
+         '<div class="row">' + m.includedCards + ' of ' + m.boardCards + ' cards included · ' + m.usedChars +
+         ' / ' + m.budgetChars + ' chars · answered by <b>' + escapeHtml(e.answeredBy) + '</b>' +
+         (Object.keys(m.dropped).length ? ' · dropped ' + escapeHtml(JSON.stringify(m.dropped)) : '') + '</div>';
+    if (e.error) h += '<div class="row nots">model error: ' + escapeHtml(e.error) + '</div>';
+    h += '<h4>Current turn</h4><div class="row"><b>Question</b> ' + ctxQ(p.current.question) + '</div>';
+    if (p.current.quote) h += '<div class="row"><b>Quote (highest priority)</b> ' + ctxQ(p.current.quote.text) + '</div>';
+    h += '<h4>Lineage (oldest → parent)</h4>' +
+         ctxRows(p.lineage, function (c) { return '<b>' + escapeHtml(c.label) + '</b> ' + escapeHtml(c.role) + ' — ' + ctxQ(c.q); });
+    h += '<h4>Earlier follow-ups under the parent</h4>' +
+         ctxRows(p.priorFollowUps, function (c) { return '<b>' + escapeHtml(c.label) + '</b> — ' + ctxQ(c.q); });
+    h += '<h4>Explicit linked context</h4>' +
+         ctxRows(p.links, function (c) {
+           var v = c.via || {};
+           return '<b>' + escapeHtml(c.label) + '</b> via ' + escapeHtml(v.from) + ' · relation ' +
+                  (v.word ? '“' + escapeHtml(v.word) + '”' : '<i>(no label)</i>') + ' · hop ' + c.hop + ' — ' + ctxQ(c.q);
+         });
+    h += '<h4>Recent history (fallback)</h4>' +
+         ctxRows(p.recent, function (c) { return '<b>' + escapeHtml(c.label) + '</b> — ' + ctxQ(c.q); });
+    h += '<h4>Board structure sent</h4>' +
+         ctxRows(p.structure.edges, function (x) {
+           return escapeHtml(x.from) + (x.type === 'link' ? ' ↔ ' : ' → ') + escapeHtml(x.to) + ' · ' +
+                  (x.type === 'link' ? 'link' + (x.word ? ' “' + escapeHtml(x.word) + '”' : ' (no label)') : 'follow-up');
+         });
+    var d = p.debug || { excluded: [], notes: [] };
+    h += '<h4>Left out on purpose (debug only, not sent)</h4>' +
+         ctxRows(d.excluded, function (x) {
+           return '<span class="nots"><b>' + escapeHtml(x.card) + '</b> linked from ' + escapeHtml(x.from) +
+                  (x.word ? ' “' + escapeHtml(x.word) + '”' : '') + ' — ' + escapeHtml(x.reason) + '</span>';
+         }) +
+         '<div class="row">' + d.notIncluded + ' other card' + (d.notIncluded === 1 ? '' : 's') + ' on the board not included</div>' +
+         d.notes.map(function (n) { return '<div class="row nots">' + escapeHtml(n) + '</div>'; }).join('');
+    h += '<h4>Package JSON (exactly what /chat received)</h4><pre>' + escapeHtml(JSON.stringify(ctxStrip(p), null, 2)) + '</pre>' +
+         '<div class="btns"><button data-act="copy">Copy JSON</button><button data-act="render">' +
+         (e.rendered ? 'Refresh' : 'Show') + ' rendered prompt</button></div>';
+    if (e.rendered) h += '<h4>Rendered prompt (from the relay)</h4><pre>' + escapeHtml(e.rendered) + '</pre>';
+    return h;
+  }
+  function renderCtxPanel() {
+    var h = '<div class="ch"><span>Context sent to the model</span><button data-act="close" title="Close">×</button></div><div class="cl">';
+    if (!CTX_LOG.length) h += '<div class="ci"><span class="cq">Nothing asked yet.</span></div>';
+    CTX_LOG.forEach(function (e) {
+      h += '<div class="ci' + (e === ctxSel ? ' sel' : '') + '" data-n="' + e.n + '"><span>#' + e.n + '</span>' +
+           '<span class="cq">' + escapeHtml(e.question) + '</span>' +
+           '<span class="tag">' + (e.pkg.meta.anchored ? 'from ' + escapeHtml(e.pkg.current.followUpFrom) : 'plain') + '</span>' +
+           '<span class="tag">' + escapeHtml(e.answeredBy) + '</span></div>';
+    });
+    h += '</div><div class="cd">' + (ctxSel ? ctxDetail(ctxSel) : '') + '</div>';
+    var keep = ctxPanel.querySelector('.cd'), top = keep ? keep.scrollTop : 0;
+    ctxPanel.innerHTML = h;
+    var cd = ctxPanel.querySelector('.cd'); if (cd) cd.scrollTop = top;
+  }
+  ctxPanel.addEventListener('click', function (ev) {
+    var t = ev.target, row = t.closest && t.closest('.ci'), act = t.getAttribute && t.getAttribute('data-act');
+    if (row) {
+      var n = +row.getAttribute('data-n');
+      ctxSel = CTX_LOG.filter(function (x) { return x.n === n; })[0] || ctxSel;
+      renderCtxPanel();
+    } else if (act === 'close') toggleCtx(false);
+    else if (act === 'copy' && ctxSel) copyText(JSON.stringify(ctxStrip(ctxSel.pkg), null, 2), null);
+    else if (act === 'render' && ctxSel) fetchRendered(ctxSel);
+  });
+  // ask the relay for the exact prompt it builds from this package (no model call)
+  function fetchRendered(e) {
+    e.rendered = 'loading…'; ctxRefresh();
+    fetch(RELAY + '/context/render', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ package: ctxStrip(e.pkg) })
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+        return j;
+      });
+    }).then(function (j) {
+      e.rendered = j.messages.map(function (m) { return '[' + m.role + ']\n' + m.content; }).join('\n\n');
+      ctxRefresh();
+    }).catch(function (err) {
+      e.rendered = 'Could not render: ' + msg(err) + (isNet(err) ? ' — is relay.js running on ' + RELAY + '?' : '');
+      ctxRefresh();
+    });
+  }
+
+
+  // The real board folds a quote into the typed question as  Re: "quote"\n\n<question>.
+  // For the model, the quote travels as its own prioritised field instead, so it is not sent twice.
+  function ctxBuildAndRecord(q, tgt, quoteText) {
+    var question = q, quote = null;
+    if (quoteText) {
+      var prefix = 'Re: "' + quoteText + '"\n\n';
+      if (q.indexOf(prefix) === 0) question = q.slice(prefix.length);
+      quote = { text: quoteText, cardId: tgt ? tgt.id : null };
+    }
+    var pkg;
+    try { pkg = buildContextPackage(question, tgt, quote); }
+    catch (err) { console.error('[context] could not build the package; falling back to plain history:', err); return null; }
+    return ctxRecord(q, pkg);
+  }
+
   // when set, the next committed exchange is injected as a child of this card
   // (a sub-thread: 5-1, 5-2…). cleared after one use or on cancel.
   var injectTarget = null;
@@ -2351,6 +2715,11 @@
   });
 
   function ask(q) {
+    // snapshot what this question is asked FROM. the package is built now, so nothing
+    // armed or cleared while the answer streams can change what the model was given.
+    var ctxTgt = injectTarget, ctxQuote = pendingQuote;
+    var ctxEntry = ctxBuildAndRecord(q, ctxTgt, ctxQuote);
+
     UI.busy = true;
     if (!live) orb.classList.add('live');
     flight.classList.remove('flying', 'done');
@@ -2370,8 +2739,8 @@
       positionFlight();
     }, function (full) {
       flight.classList.add('done');
-      land(q, full);
-    });
+      land(q, full, ctxTgt);
+    }, ctxEntry);
   }
 
   function positionFlight() {
@@ -2392,9 +2761,11 @@
     flight.style.top = Math.max(16, composer.offsetTop - h - 16) + 'px';
   }
 
-  function land(q, a) {
+  function land(q, a, tgtSnap) {
     var probe = sizeOf(q, a);
-    var tgt = injectTarget;
+    // the follow-up target as it was when the question was asked (Esc mid-answer can't change where it lands)
+    var tgt = arguments.length > 2 ? tgtSnap : injectTarget;
+    if (tgt && B.cards.indexOf(tgt) === -1) tgt = null;   // target is no longer on this board
     var c, p;
     if (tgt) {
       // child card: place directly under the parent (or its last child), linked
@@ -2402,7 +2773,7 @@
       p = nearestFree({ x: anchor.x, y: anchor.y + anchor.h + PAD }, probe.w, probe.h, null);
       c = addCard(q, a, p.x, p.y, { parent: tgt.id });
       B.links.push({ id: ++linkUid, a: tgt.id, b: c.id, word: '', context: true, lineage: true });
-      setInject(null);
+      if (injectTarget === tgt) setInject(null);   // only clear if it's still the one we used
     } else {
       p = place(probe.w, probe.h);
       c = addCard(q, a, p.x, p.y);
@@ -3017,18 +3388,21 @@
       .map(function (c) { return { q: c.q, a: c.a }; });
   }
 
-  function RESPOND(q, onToken, onDone) {
+  function RESPOND(q, onToken, onDone, entry) {
     var sofar = '';
     var ctrl = new AbortController();
     fetch(RELAY + '/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, history: boardHistory(null) }),
+      // with a context package the server builds the prompt from the board's structure;
+      // without one (package could not be built) it falls back to the old chronological history
+      body: JSON.stringify(entry ? { package: ctxStrip(entry.pkg) } : { question: q, history: boardHistory(null) }),
       signal: ctrl.signal
     }).then(async function (r) {
       if (!r.ok || !r.body) {
         var detail = '';
-        try { detail = (await r.json()).error; } catch (e) { try { detail = await r.text(); } catch (e2) {} }
+        // read the body ONCE (it was read twice before, which lost the real message: e.g. quota exceeded showed as just "HTTP 429")
+        try { var raw = await r.text(); try { detail = JSON.parse(raw).error || raw; } catch (e) { detail = raw; } } catch (e2) {}
         throw new Error(detail || ('HTTP ' + r.status));
       }
       var reader = r.body.getReader();
@@ -3040,13 +3414,19 @@
         onToken(sofar);
       }
       sofar += decoder.decode();
+      if (entry) { entry.answeredBy = 'model'; ctxRefresh(); }
       onDone(sofar || '(empty response)');
     }).catch(function (err) {
       var m = err && err.message ? err.message : String(err);
+      if (entry) { entry.answeredBy = 'error'; entry.error = m; ctxRefresh(); }
       var hint = /Failed to fetch|NetworkError/.test(m) ? ' — is the server running (npm start) on ' + RELAY + '?' : '';
       onDone((sofar ? sofar + '\n\n' : '') + '[error: ' + m + hint + ']');
     });
   }
+
+  // dev hook for the console: SKC.log[0].pkg, SKC.build('q', card, quote), SKC.panel()
+  window.SKC = { board: function () { return B; }, build: buildContextPackage, strip: ctxStrip,
+                 log: CTX_LOG, panel: toggleCtx };
 
   // ---------- start ----------
   syncRect();
