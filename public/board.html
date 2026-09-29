@@ -23,28 +23,17 @@
 
 <style>
   :root {
-    /* light theme: soft grey canvas, cards as gently-tinted floating panels
-       separated mostly by shadow rather than hard borders, grey "frame"
-       boxes with black text. no blue/purple — accent reads as dark grey/black. */
-    --bg: #eae9e7;
-    --card: #fbfbfa;
-    --card-hi: #f5f5f3;
-    --q-bg: #ececea;
-    --edge: rgba(20,20,15,.09);
-    --edge-soft: rgba(20,20,15,.05);
-    --ink: #17171a;
-    --ink-dim: #55565c;
-    --ink-faint: #94949a;
-    --chrome-bg: #fbfbfa;
-    --side: #eae9e7;   /* same grey as the canvas — no distinct white panel */
-    --live: #fbfbfa;
-    /* neutral dark grey stands in for what used to be an accent purple —
-       no blue/purple anywhere in the design now, selection/emphasis reads
-       through darkness and weight instead of hue. */
-    --accent: #2f2f33;
-    --accent-hi: #1c1c1f;
-    --shadow-card: 0 1px 2px rgba(20,20,15,.045), 0 6px 16px rgba(20,20,15,.05);
-    --shadow-pop: 0 10px 30px rgba(20,20,15,.09), 0 2px 8px rgba(20,20,15,.05);
+    --bg: #111112;
+    --card: #232326;
+    --card-hi: #2a2a2e;
+    --q-bg: #191a1f;
+    --edge: #35353a;
+    --ink: #e8e8ea;
+    --ink-dim: #8a8a92;
+    --ink-faint: #55555c;
+    --chrome-bg: #1b1b1e;
+    --side: #0d0d0e;
+    --live: #0a0a0b;
     --r: 14px;
     --sw: 258px;
   }
@@ -60,7 +49,7 @@
   /* ================= sidebar ================= */
   #side {
     position: fixed; left: 0; top: 0; bottom: 0; width: var(--sw);
-    background: var(--side); border-right: 1px solid var(--edge);
+    background: var(--side); border-right: 1px solid #202024;
     display: flex; flex-direction: column; z-index: 400;
     transition: width .22s cubic-bezier(.3,.7,.25,1);
     overflow: hidden;
@@ -73,9 +62,9 @@
   }
   #mark {
     width: 26px; height: 26px; border-radius: 7px; flex: none;
-    border: 1px solid var(--edge-soft);
+    border: 1px solid #3a3a44;
     display: grid; place-items: center;
-    background: var(--card);
+    background: #17171c;
   }
   #brandname {
     font-size: 14px; font-weight: 600; letter-spacing: -.01em;
@@ -91,14 +80,14 @@
     color: var(--ink-dim); cursor: pointer; user-select: none;
     font-size: 14px; white-space: nowrap;
   }
-  .item:hover { background: #e4e4e1; color: var(--ink); }
-  .item.on { background: #dedede; color: var(--ink); }
+  .item:hover { background: #1a1a1f; color: var(--ink); }
+  .item.on { background: #212127; color: var(--ink); }
   .item .ico { flex: none; width: 18px; height: 18px; display: grid; place-items: center; }
   .item .lbl { overflow: hidden; }
 
   #recents {
     flex: 1; overflow-y: auto; padding: 6px 8px 8px;
-    border-top: 1px solid var(--edge); margin-top: 6px; min-height: 0;
+    border-top: 1px solid #1c1c20; margin-top: 6px; min-height: 0;
   }
   body.rail #recents { visibility: hidden; }
   .eyebrow {
@@ -111,21 +100,20 @@
     color: var(--ink-dim); cursor: pointer; user-select: none;
     font-size: 13.5px;
   }
-  .rec:hover { background: #e4e4e1; color: var(--ink); }
-  .rec.on { background: #dedede; color: var(--ink); }
+  .rec:hover { background: #1a1a1f; color: var(--ink); }
+  .rec.on { background: #212127; color: var(--ink); }
   .rec .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rec .pin, .rec .del2 {
+  .rec .pin {
     flex: none; width: 22px; height: 22px; border-radius: 5px;
     display: none; place-items: center; color: var(--ink-faint);
   }
-  .rec:hover .pin, .rec:hover .del2 { display: grid; }
-  .rec .pin:hover { background: #d6d6d3; color: var(--ink); }
-  .rec .del2:hover { background: #fbe4e2; color: #c23b34; }
-  .rec.pinned .pin { display: grid; color: var(--accent-hi); }
+  .rec:hover .pin { display: grid; }
+  .rec .pin:hover { background: #2e2e36; color: var(--ink); }
+  .rec.pinned .pin { display: grid; color: #8f88ff; }
 
   #who {
     flex: none; display: flex; align-items: center; gap: 10px;
-    padding: 10px 10px 12px 14px; border-top: 1px solid var(--edge);
+    padding: 10px 10px 12px 14px; border-top: 1px solid #1c1c20;
   }
   #avatar {
     width: 26px; height: 26px; border-radius: 50%; flex: none;
@@ -136,7 +124,7 @@
     width: 28px; height: 28px; border-radius: 7px; flex: none;
     display: grid; place-items: center; color: var(--ink-faint); cursor: pointer;
   }
-  .iconbtn:hover { background: #dedede; color: var(--ink); }
+  .iconbtn:hover { background: #212127; color: var(--ink); }
 
   /* ================= board ================= */
   #stage {
@@ -153,8 +141,8 @@
   /* ---------- links between cards (node only) ---------- */
   #links { position: absolute; overflow: visible; pointer-events: none; left: 0; top: 0; }
   body.linear #links, body.linear .lh { display: none; }
-  #links path { fill: none; stroke: #8c8c96; stroke-width: 1.6; }
-  #links path.sel { stroke: var(--accent); stroke-width: 2.2; }
+  #links path { fill: none; stroke: #6f6f86; stroke-width: 1.6; }
+  #links path.sel { stroke: #a9a3ff; stroke-width: 2.2; }
   #links .hit { stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
   #links .llabel {
     fill: var(--ink); font-size: 12.5px; paint-order: stroke;
@@ -164,12 +152,12 @@
   /* the four connect handles around a card */
   .lh {
     position: absolute; width: 15px; height: 15px; border-radius: 50%;
-    background: var(--card); border: 1.6px solid #8c8c96;
+    background: var(--card); border: 1.6px solid #6f6f86;
     opacity: 0; transition: opacity .12s, transform .12s, background .12s;
     cursor: crosshair; z-index: 40;
   }
   .card:hover .lh { opacity: 1; }
-  .lh:hover { background: var(--accent-hi); border-color: var(--accent-hi); transform: scale(1.25); }
+  .lh:hover { background: #a9a3ff; border-color: #a9a3ff; transform: scale(1.25); }
   .lh.t { top: -8px;  left: 50%; margin-left: -7.5px; }
   .lh.b { bottom: -8px; left: 50%; margin-left: -7.5px; }
   .lh.l { left: -8px; top: 50%; margin-top: -7.5px; }
@@ -178,20 +166,20 @@
   /* label editor */
   #linkedit {
     position: fixed; z-index: 500; display: none;
-    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 10px;
-    padding: 8px; box-shadow: var(--shadow-pop); width: 250px;
+    background: #1b1b20; border: 1px solid var(--edge); border-radius: 10px;
+    padding: 8px; box-shadow: 0 18px 50px rgba(0,0,0,.6); width: 230px;
   }
   #linkedit.open { display: block; }
   #linkedit input {
-    width: 100%; background: var(--q-bg); border: 0;
-    border-radius: 7px; color: var(--ink); font: inherit; font-size: 15.5px;
-    padding: 8px 10px; outline: none; box-sizing: border-box;
+    width: 100%; background: #111114; border: 1px solid var(--edge);
+    border-radius: 7px; color: var(--ink); font: inherit; font-size: 13px;
+    padding: 7px 9px; outline: none; box-sizing: border-box;
   }
   #linkedit .row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
   #linkedit .ctx { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-dim); cursor: pointer; }
   #linkedit .ctx input { width: auto; }
-  #linkedit .del { background: none; border: 0; color: #c23b34; font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
-  #linkedit .del:hover { background: #fbe4e2; }
+  #linkedit .del { background: none; border: 0; color: #e28c8c; font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  #linkedit .del:hover { background: #2a2024; }
   /* linear: links become a text reference under the exchange */
   .linkref {
     display: none; font-size: 12.5px; color: var(--ink-faint);
@@ -201,22 +189,17 @@
   body.linear .card.mini .linkref { display: block; }
 
   /* ---------- card ---------- */
-  /* a soft floating panel — shadow does the separation from the canvas,
-     not a hard-drawn border, so it doesn't read as a stark white box */
   .card {
     position: absolute; width: 560px;
-    background: var(--card); border: 1px solid var(--edge-soft);
-    border-radius: var(--r); padding: 34px 16px 10px;
-    box-shadow: var(--shadow-card);
+    background: var(--card); border: 1px solid var(--edge);
+    border-radius: var(--r); padding: 22px 16px 10px;
     cursor: grab; user-select: none;
     transition: box-shadow .15s, border-color .15s, background .15s;
   }
   .card:hover { background: var(--card-hi); }
-  .card.grabbed { cursor: grabbing; box-shadow: 0 18px 40px rgba(20,20,15,.14); border-color: #b3b3af; z-index: 50; }
-  .card.blocked { border-color: #c9615f; box-shadow: 0 18px 40px rgba(20,20,15,.14), 0 0 0 1px #c9615f; }
-  /* "last card" used to get a dark border — read as an unwanted black frame.
-     a slightly stronger shadow is enough of a marker on its own. */
-  .card.is-last { box-shadow: 0 2px 4px rgba(20,20,15,.06), 0 10px 22px rgba(20,20,15,.08); }
+  .card.grabbed { cursor: grabbing; box-shadow: 0 18px 50px rgba(0,0,0,.55); border-color: #4a4a52; z-index: 50; }
+  .card.blocked { border-color: #6b4a52; box-shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px #6b4a52; }
+  .card.is-last { border-color: #4d4a63; }
 
   /* resize: you own the size too, not just the position */
   .card .grip {
@@ -233,27 +216,26 @@
   .card.mini .grip { display: none; }
 
   .card .n {
-    position: absolute; top: 13px; right: 13px;
+    position: absolute; top: 8px; right: 11px;
     font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
   }
   .card .min {
-    position: absolute; top: 8px; left: 10px;
-    width: 26px; height: 26px; border-radius: 7px;
+    position: absolute; top: 6px; left: 8px;
+    width: 20px; height: 20px; border-radius: 5px;
     display: grid; place-items: center;
-    color: var(--ink-dim); cursor: pointer; font-size: 18px; line-height: 1;
+    color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1;
   }
-  .card .min:hover { background: #dedede; color: var(--ink); }
+  .card .min:hover { background: #3a3a40; color: var(--ink); }
 
   .card .q {
-    background: var(--q-bg); border-radius: 9px;
-    padding: 8px 11px; font-size: 13.5px; color: var(--ink);
+    background: var(--q-bg); border: 1px solid #26262c; border-radius: 9px;
+    padding: 8px 11px; font-size: 13.5px; color: var(--ink-dim);
     white-space: pre-wrap; word-break: break-word; margin-bottom: 11px;
     max-height: 84px; overflow: hidden;
   }
   .card .a {
     white-space: pre-wrap; word-break: break-word; padding: 0 4px;
     overflow: hidden;
-    user-select: text; cursor: text;   /* selectable so you can quote it back into a question */
   }
   .card.clipped .a {
     -webkit-mask-image: linear-gradient(#000 72%, transparent);
@@ -280,19 +262,19 @@
     border-radius: 6px; color: var(--ink-dim); cursor: pointer;
     display: flex; align-items: center; font: inherit;
   }
-  .acts button:hover { background: #ececea; color: var(--ink); }
+  .acts button:hover { background: #2b2b32; color: var(--ink); }
   .acts button::after {
     content: attr(data-t); position: absolute; top: calc(100% + 6px); left: 50%;
-    transform: translateX(-50%); background: #202024; border: 1px solid #2c2c30;
-    color: #f2f2f0; font-size: 11px; padding: 3px 7px; border-radius: 5px;
+    transform: translateX(-50%); background: #26262c; border: 1px solid var(--edge);
+    color: var(--ink); font-size: 11px; padding: 3px 7px; border-radius: 5px;
     white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .1s;
     z-index: 5;
   }
   .acts button:hover::after { opacity: 1; }
   #amenu {
     position: fixed; z-index: 400; display: none; width: 186px;
-    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 11px;
-    padding: 6px; box-shadow: var(--shadow-pop);
+    background: #1b1b20; border: 1px solid var(--edge); border-radius: 11px;
+    padding: 6px; box-shadow: 0 18px 50px rgba(0,0,0,.6);
   }
   #amenu.open { display: block; }
   #amenu .mi {
@@ -300,7 +282,7 @@
     padding: 8px 10px; border-radius: 7px;
     font-size: 13px; color: var(--ink-dim); cursor: pointer;
   }
-  #amenu .mi:hover { background: #ececea; color: var(--ink); }
+  #amenu .mi:hover { background: #26262c; color: var(--ink); }
   .card .bar { display: none; }
   .card.mini .bar {
     display: block; font-size: 13px; color: var(--ink-dim);
@@ -308,9 +290,9 @@
   }
   .card .peek {
     display: none; position: absolute; left: 0; top: calc(100% + 6px); width: 100%;
-    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 10px;
+    background: #16161a; border: 1px solid var(--edge); border-radius: 10px;
     padding: 12px 14px; font-size: 13px; color: var(--ink); white-space: pre-wrap;
-    box-shadow: var(--shadow-pop); z-index: 60; max-height: 280px; overflow: auto;
+    box-shadow: 0 16px 44px rgba(0,0,0,.6); z-index: 60; max-height: 280px; overflow: auto;
   }
   .card.mini:hover .peek { display: block; }
   .card .peek .pq { color: var(--ink-dim); margin-bottom: 8px; }
@@ -333,7 +315,7 @@
   body.linear .card .q {
     max-width: 66%; width: fit-content; margin: 0 0 14px auto;
     max-height: none !important; overflow: visible;
-    background: var(--q-bg); border: 0; border-radius: 26px;
+    background: #2f2f2f; border: 0; border-radius: 26px;
     padding: 14px 20px; font-size: 15.5px; line-height: 1.55; color: var(--ink);
   }
   body.linear .card .a {
@@ -349,31 +331,22 @@
   body.linear .card.mini .q, body.linear .card.mini .a { display: block !important; }
 
   /* ---------- chrome inside the board ---------- */
-  /* node/linear toggle: deliberately a dark pill regardless of theme — a
-     white thumb slides under whichever side is selected; the label sitting
-     on the thumb goes dark, the other stays white-on-black. */
   #bar {
     position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
-    z-index: 200; display: flex; gap: 0;
-    background: #17171a; border: 1px solid #17171a;
+    z-index: 200; display: flex; gap: 4px;
+    background: var(--chrome-bg); border: 1px solid var(--edge);
     border-radius: 999px; padding: 4px;
   }
-  #barThumb {
-    position: absolute; top: 4px; left: 4px; height: calc(100% - 8px); width: 64px;
-    background: #ffffff; border-radius: 999px; z-index: 0;
-    transition: transform .22s cubic-bezier(.3,.7,.25,1), width .22s cubic-bezier(.3,.7,.25,1);
-  }
   #bar button {
-    position: relative; z-index: 1; min-width: 64px; text-align: center;
-    background: none; border: 0; color: #ffffff;
+    background: none; border: 0; color: var(--ink-dim);
     font: inherit; font-size: 13px; padding: 5px 16px;
-    border-radius: 999px; cursor: pointer; transition: color .18s;
+    border-radius: 999px; cursor: pointer;
   }
-  #bar button.on { color: #17171a; }
+  #bar button.on { background: #34343b; color: var(--ink); }
 
   /* injection target — the card a follow-up will nest under */
-  body.injecting .card.inject-target { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(23,23,26,.22); }
-  body.linear.injecting .card.inject-target { box-shadow: none; outline: 2px solid rgba(23,23,26,.22); outline-offset: 4px; }
+  body.injecting .card.inject-target { border-color: #a9a3ff; box-shadow: 0 0 0 2px #a9a3ff55; }
+  body.linear.injecting .card.inject-target { box-shadow: none; outline: 2px solid #a9a3ff55; outline-offset: 4px; }
 
   /* ---------- share + board menu ---------- */
   #share {
@@ -381,18 +354,17 @@
     display: flex; gap: 6px; align-items: center;
   }
   #share button {
-    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
+    background: var(--chrome-bg); border: 1px solid var(--edge);
     color: var(--ink-dim); font: inherit; font-size: 13px;
     padding: 6px 13px; border-radius: 999px; cursor: pointer;
     display: flex; align-items: center; gap: 7px;
-    box-shadow: var(--shadow-card);
   }
   #share button:hover { color: var(--ink); }
   #dots3 { padding: 6px 10px; letter-spacing: 1px; }
   #menu {
     position: absolute; top: 42px; right: 0; display: none; width: 194px;
-    background: var(--card); border: 1px solid var(--edge-soft); border-radius: 11px;
-    padding: 6px; box-shadow: var(--shadow-pop);
+    background: #1b1b20; border: 1px solid var(--edge); border-radius: 11px;
+    padding: 6px; box-shadow: 0 18px 50px rgba(0,0,0,.6);
   }
   #menu.open { display: block; }
   #menu .mi {
@@ -400,8 +372,8 @@
     padding: 8px 10px; border-radius: 7px;
     font-size: 13px; color: var(--ink-dim); cursor: pointer;
   }
-  #menu .mi:hover { background: #ececea; color: var(--ink); }
-  #menu .mi.danger:hover { background: #17171a; color: #ffffff; }
+  #menu .mi:hover { background: #26262c; color: var(--ink); }
+  #menu .mi.danger:hover { color: #e28c8c; }
   #menu .sep { height: 1px; background: var(--edge); margin: 5px 8px; }
 
   /* ---------- linear: jump between questions ---------- */
@@ -412,157 +384,69 @@
   }
   body.linear #rail { display: flex; }
   #rail .rl {
-    width: 18px; height: 2px; border-radius: 1px; background: #cdcdca;
+    width: 18px; height: 2px; border-radius: 1px; background: #3a3a42;
     cursor: pointer; transition: background .12s, width .12s;
   }
-  #rail .rl:hover { background: #9a9a96; width: 26px; }
+  #rail .rl:hover { background: #6f6f7c; width: 26px; }
   #rail .rl.on { background: var(--ink-dim); width: 26px; }
 
-  /* grows with content, Claude/ChatGPT-style, instead of staying a fixed
-     52px pill — a longer, organized draft (line breaks, a pasted list)
-     needs room to actually be readable before you send it. */
   #composer {
     position: absolute; z-index: 200;
     left: 50%; transform: translateX(-50%); bottom: 26px;
-    width: min(768px, calc(100% - 48px));
-    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
-    border-radius: 26px; box-shadow: var(--shadow-card);
-    display: flex; flex-direction: column;
-    transition: border-radius .15s;
+    width: min(768px, calc(100% - 48px)); height: 52px;
+    background: var(--chrome-bg); border: 1px solid var(--edge);
+    border-radius: 26px; display: flex; align-items: center; gap: 10px;
+    padding: 0 7px 0 20px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
   }
-  #composer.tall { border-radius: 20px; }
-  #composerRow {
-    display: flex; align-items: flex-end; gap: 10px; min-height: 52px;
-    box-sizing: border-box; padding: 9px 7px 9px 20px;
+  #composer input {
+    flex: 1; background: none; border: 0; outline: none;
+    color: var(--ink); font: inherit; padding: 0;
   }
-  /* "referencing this selection" chip — shown when a question is about to
-     quote a snippet selected from a card's answer (see #quotePop below). */
-  #quoteChip {
-    display: none; align-items: flex-start; gap: 8px;
-    margin: 12px 16px 0 20px; padding: 8px 10px;
-    background: var(--q-bg); border-radius: 10px;
-    font-size: 12.5px; color: var(--ink-dim); line-height: 1.4;
-  }
-  #quoteChip.show { display: flex; }
-  #quoteChip svg { flex: none; margin-top: 2px; color: var(--ink-faint); }
-  #quoteChip span { flex: 1; white-space: pre-wrap; word-break: break-word; }
-  #quoteChip button {
-    flex: none; background: none; border: 0; color: var(--ink-faint);
-    cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
-  }
-  #quoteChip button:hover { color: var(--ink); }
-
-  /* the floating "Ask about this" button that appears near a text
-     selection made inside a card's answer. */
-  #quotePop { display: none; position: fixed; z-index: 250; transform: translate(-50%, -100%); }
-  #quotePop.show { display: block; }
-  #quotePop button {
-    background: #17171a; color: #fff; border: 0; font: inherit; font-size: 12.5px;
-    padding: 7px 14px 7px 12px; border-radius: 999px; cursor: pointer;
-    box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 6px;
-    white-space: nowrap;
-  }
-  #quotePop button:hover { background: #000; }
-
-  #composerRow textarea {
-    flex: 1; background: none; border: 0; outline: none; resize: none;
-    color: var(--ink); font: inherit; padding: 5px 0; margin: 0;
-    line-height: 1.45; max-height: 200px; overflow-y: auto;
-  }
-  #composer textarea::placeholder { color: var(--ink-faint); }
-  #dictate, #attach, #orb { position: relative; }
-  #dictate, #attach {
+  #composer input::placeholder { color: var(--ink-faint); }
+  #dictate {
     width: 34px; height: 34px; border-radius: 50%; flex: none; cursor: pointer;
     display: grid; place-items: center; color: var(--ink-dim);
-    background: none; border: 1px solid var(--edge); margin-bottom: 2px;
-    transition: color .15s, border-color .15s, background .15s, transform .1s;
+    background: none; border: 1px solid var(--edge);
+    transition: color .15s, border-color .15s, background .15s;
   }
-  #dictate svg, #attach svg { width: 16px; height: 16px; }
-  #dictate:hover, #attach:hover { color: var(--ink); border-color: #b5b5b1; background: #ececea; }
-  #dictate:active, #attach:active { transform: scale(.9); background: #dedede; }
-  #orb:active { transform: scale(.92); }
+  #dictate svg { width: 16px; height: 16px; }
+  #dictate:hover { color: var(--ink); border-color: #55555f; }
   #dictate.rec { color: #fff; background: #d2483f; border-color: #d2483f; animation: breathe 1.4s ease-in-out infinite; }
   #dictate.busy { color: var(--ink-dim); border-color: var(--edge); animation: breathe 1s ease-in-out infinite; }
-
-  /* dark pill tooltip above each composer icon — same language as the
-     per-card action-button tooltips, so hovering any icon in the app
-     explains itself the same way. native title="" attributes are too easy
-     to miss (slow to appear, plain OS styling); this is instant and
-     consistent with the rest of the design. */
-  #attach[data-t]::after, #dictate[data-t]::after, #orb[data-t]::after {
-    content: attr(data-t); position: absolute; bottom: calc(100% + 10px);
-    left: 50%; transform: translateX(-50%);
-    background: #202024; border: 1px solid #2c2c30; color: #f2f2f0;
-    font-size: 11px; padding: 4px 8px; border-radius: 5px;
-    white-space: nowrap; opacity: 0; pointer-events: none;
-    transition: opacity .12s; z-index: 210;
-  }
-  #attach:hover::after, #dictate:hover::after, #orb:hover::after { opacity: 1; }
 
   /* voice status line, above the composer. not part of the canvas. */
   #vstatus {
     position: absolute; left: 50%; transform: translateX(-50%);
-    bottom: 88px; z-index: 160; display: none;
-    font-size: 13.5px; font-weight: 500; color: var(--ink-dim);
-    background: #fbfbfae6; border: 1px solid var(--edge-soft);
-    padding: 7px 14px; border-radius: 999px; white-space: nowrap;
-    backdrop-filter: blur(6px); box-shadow: var(--shadow-card);
+    bottom: 84px; z-index: 160; display: none;
+    font-size: 12.5px; color: var(--ink-dim);
+    background: #1b1b20cc; border: 1px solid var(--edge);
+    padding: 5px 12px; border-radius: 999px; white-space: nowrap;
+    backdrop-filter: blur(6px);
   }
   #vstatus.show { display: block; }
-  #vstatus.err { color: #b23b34; border-color: #e3b3af; background: #fdecebe6; }
+  #vstatus.err { color: #e79a94; border-color: #5a3a3a; }
   #vstatus .dot {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    margin-right: 8px; vertical-align: middle; background: var(--ink-dim);
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-right: 7px; vertical-align: middle; background: var(--ink-dim);
   }
-  #vstatus.listening { color: #1f7a44; border-color: #bfe3cc; background: #eaf7eee6; }
-  #vstatus.listening .dot { background: #38b566; animation: breathe 1.2s ease-in-out infinite; }
-  #vstatus.thinking { color: #8a6a12; border-color: #e8d9ae; background: #fbf3e1e6; }
-  #vstatus.thinking .dot  { background: #c99a2e; animation: breathe .9s ease-in-out infinite; }
-  #vstatus.speaking { color: #17171a; border-color: #c7c7c3; background: #ececeae6; }
-  #vstatus.speaking .dot  { background: #17171a; animation: breathe 1.1s ease-in-out infinite; }
-  #vstatus.connecting .dot{ background: #9a9a96; animation: breathe .8s ease-in-out infinite; }
+  #vstatus.listening .dot { background: #6fcf8e; animation: breathe 1.2s ease-in-out infinite; }
+  #vstatus.thinking .dot  { background: #d9b45a; animation: breathe .9s ease-in-out infinite; }
+  #vstatus.speaking .dot  { background: #a9a3ff; animation: breathe 1.1s ease-in-out infinite; }
+  #vstatus.connecting .dot{ background: #7a7a86; animation: breathe .8s ease-in-out infinite; }
 
-  /* "read out loud" playback — a persistent, always-visible stop control
-     while a card is being read. Not the ••• menu: needing to reopen a
-     hidden per-card dropdown mid-playback just to stop it isn't a real
-     way to stop it. */
-  #ttsBar {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    bottom: 132px; z-index: 160; display: none;
-    align-items: center; gap: 10px;
-    font-size: 13.5px; font-weight: 500; color: var(--ink);
-    background: #fbfbfae6; border: 1px solid var(--edge-soft);
-    padding: 6px 8px 6px 16px; border-radius: 999px; white-space: nowrap;
-    backdrop-filter: blur(6px); box-shadow: var(--shadow-card);
-  }
-  #ttsBar.show { display: flex; }
-  #ttsBar .dot {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: #17171a; animation: breathe 1.1s ease-in-out infinite;
-  }
-  #ttsBar button {
-    background: #17171a; color: #fff; border: 0; font: inherit; font-size: 12.5px;
-    padding: 6px 14px; border-radius: 999px; cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-  }
-  #ttsBar button:hover { background: #000; }
-
-  /* orb state tints (Mode 2). flat charcoal — matching the node/linear
-     toggle's flat black — no gradient/glossy sphere, no blue/purple. the
-     icon itself is a small audio-waveform glyph so it reads as "voice"
-     rather than an abstract dot. */
+  /* orb state tints (Mode 2). base is the idle purple orb. */
   #orb.connecting { animation: breathe .8s ease-in-out infinite; }
-  #orb.listening  { box-shadow: 0 0 0 3px #38b56655; animation: breathe 1.2s ease-in-out infinite; }
-  #orb.thinking   { box-shadow: 0 0 0 3px #c99a2e55; animation: breathe .9s ease-in-out infinite; }
-  #orb.speaking   { box-shadow: 0 0 0 3px rgba(23,23,26,.35); animation: breathe 1.1s ease-in-out infinite; }
+  #orb.listening  { box-shadow: 0 0 0 3px #6fcf8e55; animation: breathe 1.2s ease-in-out infinite; }
+  #orb.thinking   { box-shadow: 0 0 0 3px #d9b45a55; animation: breathe .9s ease-in-out infinite; }
+  #orb.speaking   { box-shadow: 0 0 0 3px #a9a3ff88; animation: breathe 1.1s ease-in-out infinite; }
   #orb.err        { box-shadow: 0 0 0 3px #d2483f77; }
   #orb {
     width: 40px; height: 40px; border-radius: 50%; flex: none; cursor: pointer;
-    display: grid; place-items: center; color: #ffffff;
-    background: #17171a;
-    opacity: .9; transform: scale(1); transition: opacity .25s, transform .25s, background .15s;
+    display: grid; place-items: center; color: var(--ink);
+    background: radial-gradient(circle at 34% 28%, #a9a3ff, #5b52e6 58%, #2e2a75);
+    opacity: .9; transform: scale(1); transition: opacity .25s, transform .25s;
   }
-  #orb:hover { opacity: 1; background: #000; }
+  #orb:hover { opacity: 1; }
   #orb svg { width: 17px; height: 17px; pointer-events: none; }
   #orb.live { opacity: 1; transform: scale(1); animation: breathe 1.9s ease-in-out infinite; }
   #orb.live svg { display: none; }
@@ -570,9 +454,9 @@
 
   #flight {
     position: absolute; z-index: 150; width: 768px;
-    background: var(--live); border: 1px solid var(--edge-soft);
+    background: var(--live); border: 1px solid #3d3d46;
     border-radius: var(--r); padding: 14px;
-    box-shadow: var(--shadow-pop);
+    box-shadow: 0 26px 70px rgba(0,0,0,.75);
     display: none; transform-origin: 0 0; max-height: 62vh; overflow: hidden;
   }
   #flight.flying { transition: transform .4s cubic-bezier(.3,.7,.25,1), opacity .4s; }
@@ -583,7 +467,7 @@
   }
   #flight.inline #fq {
     max-width: 66%; width: fit-content; margin: 0 0 14px auto;
-    background: var(--q-bg); border: 0; border-radius: 26px;
+    background: #2f2f2f; border: 0; border-radius: 26px;
     padding: 14px 20px; font-size: 15.5px; line-height: 1.55; color: var(--ink);
   }
   #flight.inline #fa {
@@ -591,8 +475,8 @@
     font-size: 15.5px; line-height: 1.75;
   }
   #fq {
-    background: var(--q-bg); border-radius: 9px;
-    padding: 9px 12px; font-size: 13.5px; color: var(--ink);
+    background: #16161c; border: 1px solid #26262c; border-radius: 9px;
+    padding: 9px 12px; font-size: 13.5px; color: var(--ink-dim);
     white-space: pre-wrap; word-break: break-word; margin-bottom: 12px;
   }
   #fa {
@@ -600,31 +484,25 @@
     max-height: calc(62vh - 80px); overflow-y: auto; scrollbar-width: thin;
   }
   #fa::-webkit-scrollbar { width: 4px; }
-  #fa::-webkit-scrollbar-thumb { background: #cdcdca; border-radius: 2px; }
+  #fa::-webkit-scrollbar-thumb { background: #35353a; border-radius: 2px; }
   #fa::after {
     content: ''; display: inline-block; width: 7px; height: 15px; margin-left: 2px;
-    background: var(--accent); vertical-align: -2px; animation: blink 1s steps(2) infinite; opacity: .9;
+    background: #6c63ff; vertical-align: -2px; animation: blink 1s steps(2) infinite; opacity: .9;
   }
   #flight.done #fa::after { display: none; }
   @keyframes blink { 50% { opacity: 0; } }
 
-  /* grouped into one pill (same language as the node/linear toggle) instead
-     of three loose chips, so it reads as one control, not stray buttons */
   #util {
     position: absolute; left: 18px; bottom: 18px; z-index: 200;
-    display: flex; align-items: center; gap: 2px;
-    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
-    border-radius: 999px; padding: 4px; box-shadow: var(--shadow-card);
-    font-size: 12px; color: var(--ink-faint);
+    display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-faint);
   }
   #util button {
-    background: none; border: 0;
+    background: var(--chrome-bg); border: 1px solid var(--edge);
     color: var(--ink-dim); font: inherit; font-size: 12px;
-    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+    padding: 5px 11px; border-radius: 8px; cursor: pointer;
   }
-  #util button:hover { background: #ececea; color: var(--ink); }
-  #util button.on { background: #17171a; color: #ffffff; }
-  #zoom { font-variant-numeric: tabular-nums; min-width: 40px; padding: 6px 8px; text-align: center; cursor: default; }
+  #util button.on { color: var(--ink); border-color: #4d4a63; }
+  #zoom { font-variant-numeric: tabular-nums; min-width: 40px; }
 
   #empty {
     position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%);
@@ -632,18 +510,80 @@
     text-align: center;
   }
 
+  /* ---------- quote-and-ask ---------- */
+  #reader { user-select: text; }
+  body.linear .card .q, body.linear .card .a { user-select: text; cursor: text; }
+  #askq {
+    position: fixed; z-index: 450; display: none;
+    background: #26262c; border: 1px solid #45454f; color: var(--ink);
+    font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 999px;
+    cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.5); white-space: nowrap;
+  }
+  #askq:hover { background: #30303a; }
+  #qchip {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 122px; z-index: 160; display: none; max-width: min(680px, calc(100% - 48px));
+    background: #1b1b20; border: 1px solid #45454f; border-radius: 12px;
+    padding: 7px 8px 7px 12px; font-size: 12.5px; color: var(--ink-dim);
+    align-items: center; gap: 10px;
+  }
+  #qchip.show { display: flex; }
+  #qchip .qt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #qchip .qf { color: var(--ink-faint); flex: none; }
+  #qchip button {
+    flex: none; background: none; border: 0; color: var(--ink-dim); cursor: pointer;
+    font-size: 15px; line-height: 1; padding: 2px 6px; border-radius: 6px;
+  }
+  #qchip button:hover { color: var(--ink); background: #2b2b32; }
+
+  /* ---------- context debug panel (temporary) ---------- */
+  #ctxbtn {
+    background: var(--chrome-bg); border: 1px solid var(--edge); color: var(--ink-faint);
+    font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer;
+  }
+  #ctxbtn:hover, #ctxbtn.on { color: var(--ink); }
+  #ctxpanel {
+    position: fixed; z-index: 480; right: 14px; top: 64px; bottom: 14px; width: 440px;
+    max-width: calc(100vw - 28px); display: none; flex-direction: column;
+    background: #141418; border: 1px solid var(--edge); border-radius: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7); font-size: 12px; color: var(--ink-dim);
+  }
+  #ctxpanel.open { display: flex; }
+  #ctxpanel .ch { display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--edge); color: var(--ink); font-size: 12.5px; }
+  #ctxpanel .ch button { background: none; border: 0; color: var(--ink-dim); cursor: pointer; font-size: 15px; }
+  #ctxpanel .cl { max-height: 26%; overflow-y: auto; border-bottom: 1px solid var(--edge); }
+  #ctxpanel .ci { padding: 7px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  #ctxpanel .ci:hover { background: #1c1c22; }
+  #ctxpanel .ci.sel { background: #22222a; color: var(--ink); }
+  #ctxpanel .ci .cq { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  #ctxpanel .tag { font-size: 10.5px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--edge); color: var(--ink-faint); flex: none; }
+  #ctxpanel .cd { flex: 1; overflow-y: auto; padding: 10px 12px 14px; }
+  #ctxpanel h4 { margin: 12px 0 5px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  #ctxpanel h4:first-child { margin-top: 0; }
+  #ctxpanel .row { padding: 3px 0; line-height: 1.45; color: var(--ink-dim); }
+  #ctxpanel .row b { color: var(--ink); font-weight: 600; }
+  #ctxpanel .nots { color: #c9a45a; }
+  #ctxpanel pre { margin: 6px 0 0; padding: 9px 10px; background: #0e0e11; border: 1px solid var(--edge);
+    border-radius: 8px; white-space: pre-wrap; word-break: break-word; color: #b9b9c4;
+    font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 320px; overflow: auto; }
+  #ctxpanel .btns { display: flex; gap: 8px; margin-top: 8px; }
+  #ctxpanel .btns button { background: #1e1e24; border: 1px solid var(--edge); color: var(--ink-dim);
+    font: inherit; font-size: 11.5px; padding: 4px 10px; border-radius: 7px; cursor: pointer; }
+  #ctxpanel .btns button:hover { color: var(--ink); }
+
   /* ---------- reader ---------- */
   #reader {
     position: fixed; z-index: 500; display: none;
     left: 50%; top: 50%; transform: translate(-50%,-50%);
     width: min(680px, calc(100vw - 48px)); max-height: 76vh;
-    background: var(--card); border: 1px solid var(--edge-soft);
+    background: #17171b; border: 1px solid var(--edge);
     border-radius: 16px; padding: 22px 24px; overflow-y: auto;
-    box-shadow: var(--shadow-pop);
+    box-shadow: 0 40px 100px rgba(0,0,0,.8);
   }
   #reader .rq {
-    background: var(--q-bg); border-radius: 9px;
-    padding: 10px 13px; font-size: 13.5px; color: var(--ink);
+    background: var(--q-bg); border: 1px solid #26262c; border-radius: 9px;
+    padding: 10px 13px; font-size: 13.5px; color: var(--ink-dim);
     white-space: pre-wrap; margin-bottom: 16px;
   }
   #reader .ra { white-space: pre-wrap; }
@@ -651,163 +591,17 @@
     position: absolute; top: 12px; right: 16px;
     font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums;
   }
-  #scrim { position: fixed; inset: 0; z-index: 490; background: rgba(0,0,0,.35); display: none; }
-
-  /* ---------- in-app confirm dialog (replaces window.confirm) ---------- */
-  #confirmModal {
-    position: fixed; z-index: 510; display: none;
-    left: 50%; top: 50%; transform: translate(-50%,-50%);
-    width: min(360px, calc(100vw - 48px));
-    background: var(--card); border: 1px solid var(--edge-soft);
-    border-radius: 14px; padding: 20px; box-shadow: var(--shadow-pop);
-  }
-  #confirmModal .cm-msg { font-size: 14px; line-height: 1.5; color: var(--ink); margin-bottom: 18px; }
-  #confirmModal .cm-row { display: flex; justify-content: flex-end; gap: 8px; }
-  #confirmModal button {
-    font: inherit; font-size: 13px; padding: 8px 16px; border-radius: 999px;
-    cursor: pointer; border: 1px solid var(--edge-soft);
-  }
-  #confirmModal .cm-cancel { background: none; color: var(--ink-dim); }
-  #confirmModal .cm-cancel:hover { background: #ececea; color: var(--ink); }
-  #confirmModal .cm-ok { background: #17171a; color: #ffffff; border-color: #17171a; }
-  #confirmModal .cm-ok:hover { background: #000000; }
-
-  /* ---------- search ---------- */
-  #searchModal {
-    position: fixed; z-index: 510; display: none;
-    left: 50%; top: 18%; transform: translateX(-50%);
-    width: min(560px, calc(100vw - 48px)); max-height: 60vh;
-    background: var(--card); border: 1px solid var(--edge-soft);
-    border-radius: 14px; padding: 10px; box-shadow: var(--shadow-pop);
-    display: none; flex-direction: column;
-  }
-  #searchModal.open { display: flex; }
-  #searchInput {
-    background: var(--q-bg); border: 0; border-radius: 9px; outline: none;
-    color: var(--ink); font: inherit; font-size: 14px; padding: 10px 12px; flex: none;
-  }
-  #searchResults { overflow-y: auto; margin-top: 8px; }
-  .sr-row { padding: 9px 10px; border-radius: 9px; cursor: pointer; }
-  .sr-row:hover { background: #ececea; }
-  .sr-board { font-size: 12px; color: var(--ink-faint); margin-bottom: 2px; }
-  .sr-snip { font-size: 13.5px; color: var(--ink); }
-  .sr-empty { padding: 14px 10px; font-size: 13px; color: var(--ink-faint); }
-
-  /* ---------- settings ---------- */
-  #settingsModal {
-    position: fixed; z-index: 510; display: none;
-    left: 50%; top: 50%; transform: translate(-50%,-50%);
-    width: min(400px, calc(100vw - 48px));
-    background: var(--card); border: 1px solid var(--edge-soft);
-    border-radius: 14px; padding: 22px; box-shadow: var(--shadow-pop);
-  }
-  #settingsModal .sm-title { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 16px; }
-  #settingsModal .sm-field { display: block; margin-bottom: 6px; }
-  #settingsModal .sm-field span { display: block; font-size: 12.5px; color: var(--ink-dim); margin-bottom: 6px; }
-  #settingsModal input {
-    width: 100%; background: var(--q-bg); border: 0; border-radius: 8px;
-    color: var(--ink); font: inherit; font-size: 13.5px; padding: 9px 11px;
-    outline: none; box-sizing: border-box;
-  }
-  #settingsModal .sm-hint { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; margin: 6px 0 16px; }
-  #settingsModal .sm-sep { height: 1px; background: var(--edge-soft); margin: 4px 0 16px; }
-  #settingsModal .sm-danger {
-    width: 100%; background: none; border: 1px solid #e3b3af; color: #b23b34;
-    font: inherit; font-size: 13px; padding: 9px 11px; border-radius: 8px; cursor: pointer;
-  }
-  #settingsModal .sm-danger:hover { background: #fdecebe6; }
-  #settingsModal .sm-row { display: flex; justify-content: flex-end; margin-top: 4px; }
-  #settingsModal .sm-row button {
-    font: inherit; font-size: 13px; padding: 8px 18px; border-radius: 999px;
-    cursor: pointer; border: 0; background: #17171a; color: #ffffff;
-  }
-  #settingsModal .sm-row button:hover { background: #000000; }
-
-  /* ---------- image cards ---------- */
-  .imgcard .imgwrap {
-    border-radius: 9px; overflow: hidden; background: var(--q-bg);
-    margin-bottom: 8px; display: flex; align-items: center; justify-content: center;
-  }
-  .imgcard .cardimg { display: block; width: 100%; height: auto; max-width: 100%; object-fit: contain; cursor: zoom-in; }
-  .imgcard .note {
-    font-size: 13.5px; line-height: 1.5; color: var(--ink); white-space: pre-wrap;
-    word-break: break-word; padding: 6px 4px; min-height: 22px; outline: none; border-radius: 6px;
-  }
-  .imgcard .note:focus { background: var(--q-bg); }
-  .imgcard .note:empty::before { content: attr(data-ph); color: var(--ink-faint); }
-  .card.mini .imgwrap, .card.mini .note { display: none; }
-  body.linear .imgcard .imgwrap { max-width: 66%; }
-
-  /* drag-and-drop an image file onto the board */
-  #stage.dragover::after {
-    content: 'Drop image to add it to the board';
-    position: absolute; inset: 18px; z-index: 300;
-    border: 2px dashed var(--accent-hi); border-radius: 18px;
-    background: rgba(23,23,26,.045);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px; color: var(--accent); font-weight: 500;
-    pointer-events: none;
-  }
+  #scrim { position: fixed; inset: 0; z-index: 490; background: rgba(0,0,0,.5); display: none; }
 
   @media (prefers-reduced-motion: reduce) {
     #side, #stage, #flight.flying, #orb.live, #fa::after { transition: none; animation: none; }
   }
-
-  /* ================= mobile ================= */
-  /* Below this width the fixed 258px sidebar would eat most of the screen,
-     so it becomes an off-canvas drawer instead: hidden by default, slides
-     in as an overlay over the (full-width) stage. Reuses the existing
-     "rail" toggle class — on desktop that class means "compact icon rail",
-     on mobile it means "drawer open" — same button, same boolean, the CSS
-     underneath it just means something else at this width. */
-  #sideScrim {
-    display: none; position: fixed; inset: 0; z-index: 399;
-    background: rgba(15,15,13,.32);
-  }
-  #mobileMenuBtn {
-    display: none; position: fixed; top: 16px; left: 16px; z-index: 250;
-    background: var(--chrome-bg); border: 1px solid var(--edge-soft);
-    box-shadow: var(--shadow-card);
-  }
-  @media (max-width: 720px) {
-    #side {
-      transform: translateX(-100%); width: min(84vw, 300px);
-      box-shadow: var(--shadow-pop);
-    }
-    body.rail #side { transform: translateX(0); width: min(84vw, 300px); }
-    /* on mobile "rail" means open, not compact — undo the desktop
-       icon-only-rail treatment for this width */
-    body.rail .railhide { opacity: 1; pointer-events: auto; }
-    body.rail #recents { visibility: visible; }
-    #stage, body.rail #stage { left: 0 !important; }
-    body.rail #sideScrim { display: block; }
-    #mobileMenuBtn { display: flex; }
-    body.rail #mobileMenuBtn { display: none; }
-
-    /* top row gets tight — trim padding so bar/share/menu-btn all fit */
-    #bar { top: 14px; padding: 3px; }
-    #bar button { min-width: 0; padding: 5px 12px; font-size: 12.5px; }
-    #share { top: 14px; right: 14px; gap: 4px; }
-    #share button { padding: 6px 10px; font-size: 12.5px; }
-    #share button span.lbl-full { display: none; }
-
-    /* util pill would collide with the composer at this width — move it
-       to its own row above the composer instead of sharing the bottom-left */
-    #util { left: 50%; transform: translateX(-50%); bottom: 84px; }
-
-    .card { width: min(560px, 84vw); }
-  }
 </style>
-
-<div id="sideScrim"></div>
-<div id="mobileMenuBtn" class="iconbtn" title="Menu">
-  <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h13M2.5 9h13M2.5 13h13"/></svg>
-</div>
 
 <div id="side">
   <div id="brand">
     <div id="mark">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#2f2f33" stroke-width="1.4">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#8f88ff" stroke-width="1.4">
         <rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="4" width="5" height="5" rx="1"/>
         <path d="M6 3.5h2" stroke-linecap="round"/>
       </svg>
@@ -864,15 +658,15 @@
   <div id="empty">Ask something.</div>
 
   <div id="bar">
-    <div id="barThumb"></div>
     <button id="mNode" class="on">node</button>
     <button id="mLinear">linear</button>
   </div>
 
   <div id="share">
+    <button id="ctxbtn" title="Show the context sent to the model (Ctrl/Cmd+Shift+D)">ctx</button>
     <button id="shareBtn">
       <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V2.5"/><path d="M5.6 5.9L9 2.5l3.4 3.4"/><path d="M3.5 11v3.5a1 1 0 001 1h9a1 1 0 001-1V11"/></svg>
-      <span class="lbl-full">Share</span>
+      Share
     </button>
     <button id="dots3">•••</button>
     <div id="menu">
@@ -887,10 +681,6 @@
       <div class="mi" id="miArchive">
         <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2.5" y="3" width="13" height="3.4" rx="1"/><path d="M3.8 6.4v7.6a1 1 0 001 1h8.4a1 1 0 001-1V6.4"/><path d="M7.2 9.4h3.6"/></svg>
         Archive
-      </div>
-      <div class="mi" id="miExport">
-        <svg width="15" height="15" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v9"/><path d="M5.5 8l3.5 3.5L12.5 8"/><path d="M3.5 13.5v1a1 1 0 001 1h9a1 1 0 001-1v-1"/></svg>
-        Export board (.json)
       </div>
       <div class="sep"></div>
       <div class="mi danger" id="miDelete">
@@ -924,70 +714,26 @@
   <div id="flight"><div id="fq"></div><div id="fa"></div></div>
 
   <div id="vstatus"></div>
-  <div id="ttsBar">
-    <span class="dot"></span><span id="ttsLabel">Reading…</span>
-    <button id="ttsStop" title="Stop reading">Stop</button>
-  </div>
-
-  <div id="quotePop"><button id="quotePopBtn"><svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v12"/><path d="M3 9h12"/></svg>Ask about this</button></div>
+  <div id="qchip"><span class="qf"></span><span class="qt"></span><button id="qchipx" title="Clear quote (Esc)">×</button></div>
 
   <div id="composer">
-    <div id="quoteChip">
-      <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5H3.5a1 1 0 00-1 1v3a1 1 0 001 1H5l1.2 2.6V5.5a1 1 0 00-1-1z"/><path d="M14.5 4.5H12a1 1 0 00-1 1v3a1 1 0 001 1h1.5l1.2 2.6V5.5a1 1 0 00-1-1z"/></svg>
-      <span id="quoteChipText"></span>
-      <button id="quoteChipX" title="Remove reference">&times;</button>
-    </div>
-    <div id="composerRow">
-      <input id="attachFile" type="file" accept="image/*" multiple style="display:none">
-      <div id="attach" data-t="Add image"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="2"/><circle cx="6.4" cy="7" r="1.3"/><path d="M2.6 12.5l3.6-3.4 3.2 3 2.4-2.2 3.6 3.3"/></svg></div>
-      <textarea id="input" rows="1" placeholder="Ask anything — tap the mic to speak" autocomplete="off"></textarea>
-      <div id="dictate" data-t="Dictate"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="1.8" width="5" height="9" rx="2.5"/><path d="M3.8 8.2a5.2 5.2 0 0010.4 0"/><path d="M9 13.4v2.8"/></svg></div>
-      <div id="orb" data-t="Start Live Voice"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v13"/><path d="M5.6 5.4v7.2"/><path d="M2.4 7.4v3.2"/><path d="M12.4 5.4v7.2"/><path d="M15.6 7.4v3.2"/></svg></div>
-    </div>
+    <input id="input" placeholder="type, or hold the mic to dictate" autocomplete="off">
+    <div id="dictate" title="Dictate (Mode 1)"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="1.8" width="5" height="9" rx="2.5"/><path d="M3.8 8.2a5.2 5.2 0 0010.4 0"/><path d="M9 13.4v2.8"/></svg></div>
+    <div id="orb" title="Live conversation (Mode 2)"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.2a6.8 6.8 0 016.8 6.8A6.8 6.8 0 019 15.8 6.8 6.8 0 012.2 9 6.8 6.8 0 019 2.2z"/><circle cx="9" cy="9" r="2.6" fill="currentColor" stroke="none"/></svg></div>
   </div>
 
   <div id="util">
-    <button id="tThread" title="Draw a faint line connecting cards in the order you created them">thread</button>
-    <button id="tHome" title="Recenter the camera on your most recent card">home</button>
-    <span id="zoom" title="Zoom level — scroll or pinch on the canvas to change it">100%</span>
+    <button id="tThread">thread</button>
+    <button id="tHome">home</button>
+    <span id="zoom">100%</span>
   </div>
 </div>
 
 <div id="scrim"></div>
 <div id="reader"><div class="rn"></div><div class="rq"></div><div class="ra"></div></div>
 
-<div id="confirmModal">
-  <div class="cm-msg"></div>
-  <div class="cm-row">
-    <button class="cm-cancel">Cancel</button>
-    <button class="cm-ok">Delete</button>
-  </div>
-</div>
-
-<div id="searchModal">
-  <input id="searchInput" placeholder="Search board names and card content…" autocomplete="off">
-  <div id="searchResults"></div>
-</div>
-
-<div id="settingsModal">
-  <div class="sm-title">Settings</div>
-  <label class="sm-field">
-    <span>Your name</span>
-    <input id="setName" autocomplete="off">
-  </label>
-  <label class="sm-field">
-    <span>Live-voice voice (optional)</span>
-    <input id="setVoice" placeholder="server default — e.g. marin, cedar, alloy" autocomplete="off">
-  </label>
-  <div class="sm-hint">Overrides the voice used for live conversation (Mode 2). Leave blank to use whatever's set on the server.</div>
-  <div class="sm-sep"></div>
-  <div class="sm-field">
-    <span>Local data</span>
-    <button id="setClear" class="sm-danger">Clear all boards on this browser</button>
-  </div>
-  <div class="sm-hint">Boards (including any uploaded images) are only saved in this browser's storage — there's no account or server-side copy. This permanently erases them here.</div>
-  <div class="sm-row"><button id="setClose">Done</button></div>
-</div>
+<button id="askq">Ask about this</button>
+<div id="ctxpanel"></div>
 
 <div id="linkedit">
   <input id="linkword" placeholder="bridge word (optional)" autocomplete="off">
@@ -1003,7 +749,7 @@
 
   var GAP = 28, PAD = 5, EDGE_PAD = 70;
   var CARD_W = 768, MIN_W = 360, MAX_W = 768;      // you can resize between these
-  var CARD_AH = 480, MIN_AH = 120, MAX_AH = 2200;  // answer viewport height
+  var CARD_AH = 260, MIN_AH = 120, MAX_AH = 640;   // answer viewport height
   var LINEAR_W = 768, FLIGHT_W = 768;
 
   var UI = { mode: 'node', dragging: false, busy: false, thread: false };
@@ -1034,68 +780,6 @@
   function ex(e) { return e.clientX - SR.left; }
   function ey(e) { return e.clientY - SR.top; }
 
-  // ---------- persistence ----------
-  // Everything lives in a JS array until now — refresh the tab, lose the
-  // board. Autosave the whole in-memory state to localStorage (debounced)
-  // and restore it on load. Not a real backend/account system, but it's
-  // the difference between a demo and something a tester can actually live
-  // in across sessions.
-  var STORAGE_KEY = 'spatialBoard.v1';
-  var saveTimer = null;
-  function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 500); }
-  var saveFailedOnce = false;
-  function saveNow() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState()));
-      saveFailedOnce = false;
-    } catch (e) {
-      console.warn('board: autosave failed', e);
-      // most likely cause: localStorage's quota (~5-10MB per browser) is full —
-      // easy to hit once a board has a few uploaded images in it. Say so once,
-      // rather than silently losing the newest changes on every refresh.
-      if (!saveFailedOnce) {
-        saveFailedOnce = true;
-        flashStatus("Couldn't save — this browser's local storage is full (large images add up fast). Use Export board (.json) as a backup.", 'err', 7000);
-      }
-    }
-  }
-  function serializeState() {
-    return {
-      v: 1, bid: bid, uid: uid, seq: seq, linkUid: linkUid,
-      activeBoardId: B ? B.id : null,
-      boards: boards.map(function (b) {
-        return {
-          id: b.id, name: b.name, pinned: b.pinned,
-          nextN: b.nextN, lastId: b.lastId, view: b.view, scroll: b.scroll,
-          links: b.links,
-          cards: b.cards.map(function (c) {
-            return { id: c.id, q: c.q, a: c.a, x: c.x, y: c.y, w: c.w, ah: c.ah,
-                     mini: c.mini, interrupted: c.interrupted, parent: c.parent,
-                     sub: c.sub, t: c.t, n: c.n, img: c.img || null,
-                     imgW: c.imgW || 0, imgH: c.imgH || 0 };
-          })
-        };
-      })
-    };
-  }
-  function loadState() {
-    var raw;
-    try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
-    if (!raw) return null;
-    try { var s = JSON.parse(raw); return (s && s.boards && s.boards.length) ? s : null; }
-    catch (e) { return null; }
-  }
-  function exportBoardJSON() {
-    var blob = new Blob([JSON.stringify(serializeState(), null, 2)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'board-export-' + new Date().toISOString().slice(0, 10) + '.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  }
-  window.addEventListener('beforeunload', saveNow);
-  document.addEventListener('visibilitychange', function () { if (document.hidden) saveNow(); });
-
   // ---------- boards ----------
   var bid = 0, uid = 0, seq = 0;
   function newBoard(name) {
@@ -1106,21 +790,7 @@
       scroll: 0                                        // linear scroll — separate state
     };
     boards.unshift(b);
-    scheduleSave();
     return b;
-  }
-  // collapse any empty, unpinned "new chat" placeholders down to one —
-  // keeps boards (newest-first) clean after the reuse-current-chat fix,
-  // and also cleans up anything that piled up before that fix existed.
-  function dedupeEmptyBoards() {
-    var seenEmpty = false;
-    var kept = boards.filter(function (b) {
-      if (b.pinned || b.cards.length > 0) return true;
-      if (seenEmpty) return false;
-      seenEmpty = true;
-      return true;
-    });
-    if (kept.length !== boards.length) { boards = kept; scheduleSave(); }
   }
   function switchTo(b) {
     if (B === b) return;
@@ -1137,36 +807,16 @@
     list.forEach(function (b) {
       var el = document.createElement('div');
       el.className = 'rec' + (b === B ? ' on' : '') + (b.pinned ? ' pinned' : '');
-      el.innerHTML = '<div class="nm"></div>' +
-        '<div class="del2" title="Delete">' +
-        '<svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h12"/><path d="M7 4.5V3a.8.8 0 01.8-.8h2.4A.8.8 0 0111 3v1.5"/><path d="M4.6 4.5l.7 10a1 1 0 001 .9h5.4a1 1 0 001-.9l.7-10"/></svg></div>' +
-        '<div class="pin" title="Pin">' +
+      el.innerHTML = '<div class="nm"></div><div class="pin" title="Pin">' +
         '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
         '<path d="M5 1.5h4l-.6 3.2 2.1 2.1H3.5l2.1-2.1z"/><path d="M7 6.8V12.5"/></svg></div>';
       el.querySelector('.nm').textContent = b.name;
       el.addEventListener('click', function () { switchTo(b); });
       el.querySelector('.pin').addEventListener('click', function (e) {
-        e.stopPropagation(); b.pinned = !b.pinned; renderRecents(); scheduleSave();
-      });
-      el.querySelector('.del2').addEventListener('click', function (e) {
-        e.stopPropagation(); deleteBoard(b);
+        e.stopPropagation(); b.pinned = !b.pinned; renderRecents();
       });
       reclist.appendChild(el);
     });
-  }
-  // shared by the sidebar hover-delete icon and the ••• menu's Delete item
-  async function deleteBoard(b) {
-    if (boards.length <= 1) { flashStatus("Can't delete your only chat.", 'err', 2600); return; }
-    var ok = await askConfirm('Delete "' + b.name + '"? This can\'t be undone.', 'Delete');
-    if (!ok) return;
-    var idx = boards.indexOf(b);
-    if (b === B) {
-      var next = boards[idx + 1] || boards[idx - 1] || boards[0];
-      switchTo(next);                          // tears down doomed's DOM, activates next
-    }
-    boards.splice(boards.indexOf(b), 1);
-    renderRecents();
-    scheduleSave();
   }
 
   // ---------- geometry ----------
@@ -1247,12 +897,11 @@
   function addCard(q, a, x, y, opts) {
     opts = opts || {};
     var c = { id: ++uid, q: q, a: a, x: x, y: y,
-              w: opts.w || CARD_W, ah: opts.ah || CARD_AH, h: 0, mini: false, el: null,
+              w: CARD_W, ah: CARD_AH, h: 0, mini: false, el: null,
               interrupted: !!opts.interrupted,
+              quote: opts.quote ? { text: opts.quote.text } : null,   // passage this question was asked about
               parent: opts.parent || null,   // id of the exchange this was injected under
               sub: 0,                         // sub-index under parent (1,2,3…); 0 = top-level
-              img: opts.img || null,          // data URL — set only for an uploaded-image card
-              imgW: opts.imgW || 0, imgH: opts.imgH || 0,  // natural pixel size, for aspect-ratio
               t: ++seq };                     // internal creation order, always monotonic
     if (c.parent != null) {
       // child: number is parent-relative (5-1, 5-2…). does not consume a top number.
@@ -1264,7 +913,6 @@
     }
     B.cards.push(c);
     buildEl(c); measure(c);
-    scheduleSave();
     return c;
   }
   // display label: "6" for top-level, "5-1" for a child, tracing the parent's number
@@ -1299,15 +947,6 @@
          '</div>'
     };
   }
-  // lighter action row for an image card — no AI retry/regenerate, since
-  // there's no exchange behind it to redo.
-  function imgActsHTML() {
-    return '<div class="aacts acts">' +
-             '<button data-a="acopy" data-t="Copy note">' + IC.copy + '</button>' +
-             '<button data-a="afollow" data-t="Ask a follow-up">' + IC.follow + '</button>' +
-             '<button data-a="amore" data-t="More actions">' + IC.dots + '</button>' +
-           '</div>';
-  }
   function copyText(t, btn) {
     function done() {
       if (!btn) return;
@@ -1340,65 +979,12 @@
     if (!amenu.contains(e.target) && !(e.target.closest && e.target.closest('[data-a="amore"]')))
       amenu.classList.remove('open');
   });
-  // "View sources" and "Branch" are reserved — what they'd actually do is a
-  // design decision that isn't made yet. "Read out loud" and "Detach" work.
+  // reserved: what these do is a design decision that isn't made yet
   amenu.addEventListener('click', function (e) {
     var mi = e.target.closest && e.target.closest('.mi');
-    var act = mi && mi.getAttribute('data-a');
-    if (act === 'detach' && amenuCard) detach(amenuCard);
-    else if (act === 'read' && amenuCard) readAloud(amenuCard);
+    if (mi && mi.getAttribute('data-a') === 'detach' && amenuCard) detach(amenuCard);
     amenu.classList.remove('open');
   });
-
-  // ---- read out loud: real speech from the server's /tts, not the browser's
-  // built-in speechSynthesis — that's a robotic system voice, not a neural
-  // one, which is why it sounded nothing like a live-conversation reply or
-  // ChatGPT/Claude's own voice. This does cost a small amount of OpenAI
-  // usage per read (unlike the old free browser TTS), same as live voice.
-  var speaking = null;    // the card currently being read, or null
-  var speakAudio = null;  // the <audio> element currently playing, or null
-  var speakUrl = null;    // its object URL, so it can be revoked on stop
-  var ttsBar = document.getElementById('ttsBar');
-  var ttsLabel = document.getElementById('ttsLabel');
-  function stopReading() {
-    if (speakAudio) { speakAudio.pause(); speakAudio.src = ''; speakAudio = null; }
-    if (speakUrl) { URL.revokeObjectURL(speakUrl); speakUrl = null; }
-    speaking = null;
-    ttsBar.classList.remove('show');
-  }
-  document.getElementById('ttsStop').addEventListener('click', stopReading);
-  async function readAloud(c) {
-    if (speaking === c) { stopReading(); return; }   // clicking it again stops it
-    stopReading();                                     // switching cards mid-read stops the old one
-    var text = (c.a || '').trim();
-    if (!text) return;
-    speaking = c;
-    ttsLabel.textContent = 'Loading audio for ' + label(c) + '…';
-    ttsBar.classList.add('show');
-    try {
-      var r = await fetch(RELAY + '/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text, voice: profile.voice })
-      });
-      if (!r.ok) {
-        var d = await r.text().catch(function () { return ''; });
-        throw new Error('HTTP ' + r.status + (d ? ' — ' + d.slice(0, 160) : ''));
-      }
-      if (speaking !== c) return;   // stopped, or switched cards, while this was loading
-      var blob = await r.blob();
-      if (speaking !== c) return;
-      speakUrl = URL.createObjectURL(blob);
-      speakAudio = new Audio(speakUrl);
-      ttsLabel.textContent = 'Reading ' + label(c);
-      speakAudio.onended = function () { if (speaking === c) stopReading(); };
-      speakAudio.onerror = function () { if (speaking === c) { stopReading(); flashStatus('Playback failed.', 'err', 3200); } };
-      speakAudio.play();
-    } catch (err) {
-      if (speaking === c) stopReading();
-      flashStatus('Could not read that aloud: ' + (err.message || err) + ' — is the server running with an OpenAI key?', 'err', 4600);
-    }
-  }
   // detach a child: keep its 5-1 identity, but free it as its own node and
   // remove the auto lineage link so it no longer visually hangs off the parent.
   function detach(c) {
@@ -1433,7 +1019,6 @@
   function startEdit(c) {
     if (UI.busy) return;
     input.value = c.q;
-    autoGrowInput();
     B.lastId = c.id;            // new card lands right of the one you're editing
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
@@ -1446,97 +1031,8 @@
 
   function buildEl(c) {
     var el = document.createElement('div');
-    el.className = 'card' + (c.mini ? ' mini' : '') + (c.img ? ' imgcard' : '');
-    el.dataset.id = c.id;   // lets a text selection inside a card find its way back to the model
-
-    if (c.img) {
-      var IA = imgActsHTML();
-      el.innerHTML =
-        '<div class="min" title="minimize">' + (c.mini ? '&plus;' : '&minus;') + '</div><div class="n"></div>' +
-        '<div class="bar"></div>' +
-        '<div class="imgwrap"><img class="cardimg" src="" alt=""></div>' +
-        '<div class="note" contenteditable="true" spellcheck="false" data-ph="Add a note about this image…"></div>' + IA +
-        '<div class="linkref"></div>' +
-        '<div class="grip" title="Resize"></div>' +
-        '<div class="peek"><div class="pq"></div><div class="pa"></div></div>' +
-        '<div class="lh t" data-side="t"></div><div class="lh b" data-side="b"></div>' +
-        '<div class="lh l" data-side="l"></div><div class="lh r" data-side="r"></div>';
-      el.style.width = c.w + 'px';
-      el.querySelector('.n').textContent = label(c);
-      var imgEl = el.querySelector('.cardimg');
-      // reserve the correct box via aspect-ratio BEFORE the image decodes, so
-      // placement/collision math is right from the first synchronous measure
-      // instead of jumping after an async image load.
-      if (c.imgW && c.imgH) imgEl.style.aspectRatio = c.imgW + ' / ' + c.imgH;
-      imgEl.src = c.img;
-      imgEl.style.maxHeight = c.ah + 'px';
-      imgEl.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-      imgEl.addEventListener('click', function (e) { e.stopPropagation(); openReader(c); });
-      // safety net for the rare case the aspect-ratio guess and the real
-      // decoded image disagree (e.g. a restored card from an older browser)
-      imgEl.addEventListener('load', function () {
-        measure(c);
-        var pr = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
-        if (pr.x !== c.x || pr.y !== c.y) settle(c, pr.x, pr.y); else draw();
-      });
-      el.querySelector('.bar').textContent = c.q || 'Image';
-      el.querySelector('.pq').textContent = c.q || 'Image';
-      el.querySelector('.pa').textContent = c.a;
-      var noteEl = el.querySelector('.note');
-      noteEl.textContent = c.a || '';
-      noteEl.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-      noteEl.addEventListener('keydown', function (e) { e.stopPropagation(); });
-      noteEl.addEventListener('input', function () { c.a = noteEl.textContent; scheduleSave(); });
-      noteEl.addEventListener('blur', function () {
-        measure(c);
-        var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
-        if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
-      });
-      el.querySelector('.min').addEventListener('pointerdown', function (e) {
-        e.stopPropagation();
-        c.mini = !c.mini;
-        el.classList.toggle('mini', c.mini);
-        el.querySelector('.min').innerHTML = c.mini ? '&plus;' : '&minus;';
-        measure(c);
-        var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
-        if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
-      });
-      el.querySelector('.grip').addEventListener('pointerdown', function (e) {
-        e.stopPropagation();
-        if (UI.mode === 'linear') return;
-        var z = B.view.z, sw = c.w, sah = c.ah, sx = e.clientX, sy = e.clientY;
-        UI.dragging = true;
-        function mv(ev) {
-          c.w = Math.round(Math.min(MAX_W, Math.max(MIN_W, sw + (ev.clientX - sx) / z)));
-          c.ah = Math.round(Math.min(MAX_AH, Math.max(MIN_AH, sah + (ev.clientY - sy) / z)));
-          el.style.width = c.w + 'px';
-          imgEl.style.maxHeight = c.ah + 'px';
-          measure(c); draw();
-        }
-        function up() {
-          UI.dragging = false;
-          window.removeEventListener('pointermove', mv);
-          window.removeEventListener('pointerup', up);
-          var p = nearestFree({ x: c.x, y: c.y }, c.w, c.h, c.id);
-          if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y); else draw();
-        }
-        window.addEventListener('pointermove', mv);
-        window.addEventListener('pointerup', up);
-      });
-      el.querySelectorAll('.lh').forEach(function (h) {
-        h.addEventListener('pointerdown', function (e) {
-          e.stopPropagation();
-          startLink(e, c, h.getAttribute('data-side'));
-        });
-      });
-      el.addEventListener('pointerdown', function (e) { startDrag(e, c); });
-      wireActs(el, c);
-      c.el = el;
-      world.appendChild(el);
-      return;
-    }
-
     var A = actsHTML();
+    el.className = 'card' + (c.mini ? ' mini' : '');
     el.innerHTML =
       '<div class="min" title="minimize">' + (c.mini ? '&plus;' : '&minus;') + '</div><div class="n"></div>' +
       '<div class="bar"></div><div class="q"></div>' + A.q + '<div class="a"></div>' +
@@ -1553,9 +1049,6 @@
     el.querySelector('.bar').textContent = c.q;
     el.querySelector('.pq').textContent = c.q;
     el.querySelector('.pa').textContent = c.a;
-    // don't start a card-drag from inside the answer text — it needs a plain
-    // mousedown-drag to select text so you can quote it back into a question
-    el.querySelector('.a').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
     el.querySelector('.more').addEventListener('pointerdown', function (e) {
       e.stopPropagation(); openReader(c);
     });
@@ -1599,18 +1092,16 @@
     });
     el.addEventListener('pointerdown', function (e) { startDrag(e, c); });
     wireActs(el, c);
+    el.addEventListener('dblclick', function (e) {
+      if (UI.mode === 'linear') return;                       // linear text is directly selectable
+      if (e.target.closest && e.target.closest('.a')) openReader(c);
+    });
     c.el = el;
     world.appendChild(el);
   }
 
   function measure(c) {
     c.el.style.transform = 'translate(0px,0px)';
-    if (c.img) {
-      // no text clipping/mask for an image card — it just takes whatever
-      // height its image + note actually render at, in both modes.
-      c.h = c.el.offsetHeight;
-      return;
-    }
     if (UI.mode === 'node') {
       var a = c.el.querySelector('.a'), q = c.el.querySelector('.q');
       c.el.classList.toggle('clipped', !c.mini &&
@@ -1645,143 +1136,17 @@
     return r;
   }
 
+  var readerCard = null;
   function openReader(c) {
+    readerCard = c;
     reader.querySelector('.rn').textContent = label(c);
-    if (c.img) {
-      reader.querySelector('.rq').textContent = c.q || 'Image';
-      var ra = reader.querySelector('.ra');
-      ra.innerHTML = '';
-      var big = document.createElement('img');
-      big.src = c.img;
-      big.style.cssText = 'display:block;max-width:100%;border-radius:10px;margin-bottom:14px;';
-      ra.appendChild(big);
-      if (c.a) { var note = document.createElement('div'); note.style.whiteSpace = 'pre-wrap'; note.textContent = c.a; ra.appendChild(note); }
-    } else {
-      reader.querySelector('.rq').textContent = c.q;
-      reader.querySelector('.ra').textContent = c.a;
-    }
+    reader.querySelector('.rq').textContent = c.q;
+    reader.querySelector('.ra').textContent = c.a;
     reader.style.display = 'block'; scrim.style.display = 'block'; reader.scrollTop = 0;
   }
-  function closeReader() { reader.style.display = 'none'; hideScrimIfNothingOpen(); }
-
-  // ---------- shared scrim: several modals sit behind the same dim backdrop,
-  // so closing one shouldn't blindly hide it out from under another ----------
-  function anyModalOpen() {
-    return reader.style.display === 'block' || confirmModal.style.display === 'block' ||
-           searchModal.classList.contains('open') || settingsModal.style.display === 'block';
-  }
-  function showScrim() { scrim.style.display = 'block'; }
-  function hideScrimIfNothingOpen() { if (!anyModalOpen()) scrim.style.display = 'none'; }
-  scrim.addEventListener('pointerdown', function () {
-    closeReader(); closeConfirm(false); closeSearch(); closeSettings();
-  });
-  window.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    closeReader(); closeConfirm(false); closeSearch(); closeSettings();
-  });
-
-  // ---------- in-app confirm dialog (replaces window.confirm — no native
-  // browser popup, matches the app's own look) ----------
-  var confirmModal = document.getElementById('confirmModal');
-  var confirmResolve = null;
-  function askConfirm(message, okLabel) {
-    return new Promise(function (resolve) {
-      confirmModal.querySelector('.cm-msg').textContent = message;
-      confirmModal.querySelector('.cm-ok').textContent = okLabel || 'Delete';
-      confirmModal.style.display = 'block'; showScrim();
-      confirmResolve = resolve;
-    });
-  }
-  function closeConfirm(result) {
-    if (confirmModal.style.display !== 'block') return;
-    confirmModal.style.display = 'none'; hideScrimIfNothingOpen();
-    if (confirmResolve) { var r = confirmResolve; confirmResolve = null; r(result); }
-  }
-  confirmModal.querySelector('.cm-cancel').addEventListener('click', function () { closeConfirm(false); });
-  confirmModal.querySelector('.cm-ok').addEventListener('click', function () { closeConfirm(true); });
-
-  // ---------- search: board names + every card's question/answer text ----------
-  var searchModal = document.getElementById('searchModal');
-  var searchInput = document.getElementById('searchInput');
-  var searchResults = document.getElementById('searchResults');
-  function openSearch() {
-    searchModal.classList.add('open'); showScrim();
-    searchInput.value = ''; renderSearchResults('');
-    setTimeout(function () { searchInput.focus(); }, 0);
-  }
-  function closeSearch() {
-    if (!searchModal.classList.contains('open')) return;
-    searchModal.classList.remove('open'); hideScrimIfNothingOpen();
-  }
-  function renderSearchResults(qraw) {
-    var q = qraw.trim().toLowerCase();
-    searchResults.innerHTML = '';
-    if (!q) { searchResults.innerHTML = '<div class="sr-empty">Type to search board names and card content.</div>'; return; }
-    var hits = [];
-    boards.forEach(function (b) {
-      if (b.name.toLowerCase().indexOf(q) !== -1) hits.push({ board: b, card: null, snippet: '(board name)' });
-      (b.cards || []).forEach(function (c) {
-        var src = (c.q && c.q.toLowerCase().indexOf(q) !== -1) ? c.q : ((c.a && c.a.toLowerCase().indexOf(q) !== -1) ? c.a : null);
-        if (!src) return;
-        var idx = src.toLowerCase().indexOf(q);
-        var start = Math.max(0, idx - 30), end = Math.min(src.length, idx + q.length + 50);
-        hits.push({ board: b, card: c, snippet: (start > 0 ? '…' : '') + src.slice(start, end) + (end < src.length ? '…' : '') });
-      });
-    });
-    if (!hits.length) { searchResults.innerHTML = '<div class="sr-empty">No matches.</div>'; return; }
-    hits.slice(0, 60).forEach(function (h) {
-      var row = document.createElement('div');
-      row.className = 'sr-row';
-      row.innerHTML = '<div class="sr-board"></div><div class="sr-snip"></div>';
-      row.querySelector('.sr-board').textContent = h.board.name;
-      row.querySelector('.sr-snip').textContent = h.snippet;
-      row.addEventListener('click', function () {
-        closeSearch();
-        switchTo(h.board);
-        if (h.card && UI.mode === 'node') centerOnCard(h.card);
-      });
-      searchResults.appendChild(row);
-    });
-  }
-  searchInput.addEventListener('input', function () { renderSearchResults(searchInput.value); });
-  document.getElementById('nSearch').addEventListener('click', openSearch);
-
-  // ---------- settings: a real (small) panel instead of a dead stub ----------
-  var PROFILE_KEY = 'spatialBoard.profile.v1';
-  var profile = { name: 'You', voice: '' };
-  (function loadProfile() {
-    try {
-      var raw = localStorage.getItem(PROFILE_KEY);
-      if (raw) { var p = JSON.parse(raw); if (p && typeof p === 'object') profile = { name: p.name || 'You', voice: p.voice || '' }; }
-    } catch (e) { /* ignore, use defaults */ }
-  })();
-  function saveProfile() {
-    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) { /* not critical */ }
-  }
-  function applyProfile() { document.getElementById('whoname').textContent = profile.name || 'You'; }
-
-  var settingsModal = document.getElementById('settingsModal');
-  var setName = document.getElementById('setName'), setVoice = document.getElementById('setVoice');
-  function openSettings() {
-    setName.value = profile.name || ''; setVoice.value = profile.voice || '';
-    settingsModal.style.display = 'block'; showScrim();
-    setTimeout(function () { setName.focus(); }, 0);
-  }
-  function closeSettings() {
-    if (settingsModal.style.display !== 'block') return;
-    settingsModal.style.display = 'none'; hideScrimIfNothingOpen();
-  }
-  setName.addEventListener('input', function () { profile.name = setName.value; applyProfile(); saveProfile(); });
-  setVoice.addEventListener('input', function () { profile.voice = setVoice.value.trim(); saveProfile(); });
-  document.getElementById('setClose').addEventListener('click', closeSettings);
-  document.getElementById('setClear').addEventListener('click', async function () {
-    var ok = await askConfirm('Erase every board saved in this browser? This can\'t be undone — use Export board (.json) first if you want a backup.', 'Erase everything');
-    if (!ok) return;
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    location.reload();
-  });
-  document.getElementById('settings').addEventListener('click', openSettings);
-  applyProfile();
+  function closeReader() { reader.style.display = 'none'; scrim.style.display = 'none'; readerCard = null; }
+  scrim.addEventListener('pointerdown', closeReader);
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeReader(); });
 
   // ---------- linear: a chat, not a lens onto a board ----------
   var TOP_PAD = 26, BOT_ROOM = 118, ROW_GAP = 4;
@@ -2042,7 +1407,7 @@
     editingLink = lk; selLink = lk; draw();
     linkword.value = lk.word || '';
     linkctx.checked = !!lk.context;
-    linkedit.style.left = Math.min(window.innerWidth - 266, cx) + 'px';
+    linkedit.style.left = Math.min(window.innerWidth - 246, cx) + 'px';
     linkedit.style.top = Math.min(window.innerHeight - 110, cy) + 'px';
     linkedit.classList.add('open');
     linkword.focus(); linkword.select();
@@ -2075,7 +1440,7 @@
     var sp = 48 * B.view.z;
     if (sp < 12) return;
     var ox = ((B.view.x % sp) + sp) % sp, oy = ((B.view.y % sp) + sp) % sp;
-    dctx.fillStyle = '#dddcda';   // ~5% darker than --bg, not a leftover dark-theme black
+    dctx.fillStyle = '#2a2a2d';
     for (var x = ox - sp; x < w; x += sp) for (var y = oy - sp; y < h; y += sp) dctx.fillRect(x, y, 1.5, 1.5);
   }
 
@@ -2134,7 +1499,6 @@
       if (p.x !== c.x || p.y !== c.y) settle(c, p.x, p.y);
     }
     drag = null; UI.dragging = false;
-    scheduleSave();
     window.removeEventListener('pointermove', onDragMove);
     window.removeEventListener('pointerup', endDrag);
   }
@@ -2149,53 +1513,17 @@
   }
 
   // ---------- pan / zoom ----------
-  // A single finger (or the mouse) pans, same as before. A second finger
-  // landing on the canvas switches to pinch: distance between the two
-  // touches drives zoom, their midpoint drives pan, both anchored so the
-  // point under your fingers stays under your fingers — the same
-  // zoom-around-a-point math the wheel handler below uses, just re-anchored
-  // every frame to the pinch midpoint instead of the cursor.
   var pan = null;
-  var touches = new Map();   // pointerId -> last {x, y}, active canvas touches only
-  var pinch = null;          // {dist, z0} snapshot from the moment the 2nd finger landed
-  function touchDist() {
-    var p = Array.from(touches.values());
-    return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
-  }
-  function touchMid() {
-    var p = Array.from(touches.values());
-    return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
-  }
   stage.addEventListener('pointerdown', function (e) {
     if (e.target.closest('.card') || e.target.closest('#composer') ||
         e.target.closest('#bar') || e.target.closest('#util') || e.target.closest('#flight') ||
         e.target.closest('#links') || e.target.closest('#linkedit')) return;
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.size >= 2 && UI.mode === 'node') {
-      pan = null;
-      pinch = { dist: touchDist(), z0: B.view.z };
-    } else if (touches.size === 1) {
-      pan = { x: e.clientX, y: e.clientY };
-    }
+    pan = { x: e.clientX, y: e.clientY };
     stage.classList.add('panning'); UI.dragging = true;
     window.addEventListener('pointermove', onPan);
     window.addEventListener('pointerup', endPan);
-    window.addEventListener('pointercancel', endPan);
   });
   function onPan(e) {
-    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (pinch && touches.size >= 2) {
-      var mid = touchMid(), dist = touchDist();
-      var z = Math.min(2.5, Math.max(0.12, pinch.z0 * (dist / (pinch.dist || 1))));
-      var k = z / B.view.z;
-      var mx = ex({ clientX: mid.x, clientY: mid.y }), my = ey({ clientX: mid.x, clientY: mid.y });
-      B.view.x = mx - (mx - B.view.x) * k;
-      B.view.y = my - (my - B.view.y) * k;
-      B.view.z = z; draw();
-      return;
-    }
-
     if (!pan) return;
     if (UI.mode === 'linear') {
       B.scroll -= e.clientY - pan.y;       // vertical only. no sideways drift.
@@ -2205,23 +1533,10 @@
     }
     pan = { x: e.clientX, y: e.clientY }; draw();
   }
-  function endPan(e) {
-    if (e && touches.has(e.pointerId)) touches.delete(e.pointerId);
-    if (touches.size >= 2) {
-      // still 2+ fingers down (a 3rd joined, or one of two lifted and
-      // another was already there) — re-anchor pinch from here, no jump
-      pinch = { dist: touchDist(), z0: B.view.z };
-    } else if (touches.size === 1) {
-      // down to one finger — resume a plain pan from its current position
-      pinch = null;
-      var last = Array.from(touches.values())[0];
-      pan = { x: last.x, y: last.y };
-    } else {
-      pinch = null; pan = null; UI.dragging = false; stage.classList.remove('panning');
-      window.removeEventListener('pointermove', onPan);
-      window.removeEventListener('pointerup', endPan);
-      window.removeEventListener('pointercancel', endPan);
-    }
+  function endPan() {
+    pan = null; UI.dragging = false; stage.classList.remove('panning');
+    window.removeEventListener('pointermove', onPan);
+    window.removeEventListener('pointerup', endPan);
   }
 
   stage.addEventListener('wheel', function (e) {
@@ -2240,117 +1555,407 @@
   }, { passive: false });
 
   // ---------- the loop ----------
+  // <<CTX-BEGIN>> ----------------------------------------------------------
+  // CONTEXT PACKAGE. What the model is allowed to know when a question is asked.
+  //
+  // It is built ONLY from structure the user made on purpose:
+  //   - the card being followed up from, and its follow-up lineage (5 → 5-1 → …)
+  //   - links the user marked "use as context", with the bridge word they wrote
+  //   - a quoted passage
+  // Chronological history is a fallback, used only when the question is not
+  // anchored to a card. Position (x, y) is never read: where a card sits on the
+  // canvas cannot change what the model sees (rule 10).
+  var CTX = {
+    RECENT_UNANCHORED: 3,   // fallback history, only when nothing is anchored
+    LINEAGE_MAX: 6,         // nearest ancestors kept (the parent is always kept)
+    PRIOR_MAX: 6,           // earlier follow-ups under the same parent
+    LINK_DEPTH: 2,          // hops across context links, starting at the parent
+    LINK_MAX: 6,            // linked cards included in total
+    Q_CHARS: 600, A_CHARS: 1800, QUOTE_CHARS: 1500,
+    BUDGET_CHARS: 14000     // total card text sent; lowest-priority material drops first
+  };
+  function ctxClip(s, n) {
+    s = String(s == null ? '' : s);
+    return s.length > n ? s.slice(0, n).replace(/\s+$/, '') + ' …[truncated]' : s;
+  }
+
+  function buildContextPackage(question, activeCard, quote) {
+    var cards = B.cards, links = B.links || [];
+    var idx = {};
+    cards.forEach(function (c) { idx[c.id] = c; });
+    var anchor = (activeCard && idx[activeCard.id]) ? activeCard : null;
+    var reg = {};                    // label -> card, for cards that made it into the package
+    var included = {};               // card id -> true (de-duplication while walking)
+    var linkEdges = [];              // context links walked, kept for the topology
+    var dbg = { excluded: [], notes: [] };   // debug only: never sent to the model
+    var pkg = {
+      v: 1,
+      current: { question: String(question), followUpFrom: null, quote: null },
+      focus: { kind: 'none' },
+      lineage: [], priorFollowUps: [], links: [], recent: [],
+      structure: { nodes: [], edges: [] },
+      meta: { anchored: !!anchor, boardCards: cards.length, includedCards: 0,
+              usedChars: 0, budgetChars: CTX.BUDGET_CHARS, dropped: {} }
+    };
+    function drop(k, n) { pkg.meta.dropped[k] = (pkg.meta.dropped[k] || 0) + (n || 1); }
+    function snap(c, role) {
+      var o = { label: label(c), role: role, q: ctxClip(c.q, CTX.Q_CHARS), a: ctxClip(c.a, CTX.A_CHARS) };
+      if (c.interrupted) o.interrupted = true;
+      if (c.detached) o.detached = true;
+      reg[o.label] = c; included[c.id] = true;
+      return o;
+    }
+
+    if (anchor) {
+      pkg.current.followUpFrom = label(anchor);
+
+      // lineage: ancestors oldest → nearest, then the parent (the card followed up from)
+      var chain = [], seen = {}, p = anchor;
+      seen[p.id] = true;
+      while (p.parent != null && idx[p.parent] && !seen[p.parent]) {
+        p = idx[p.parent]; seen[p.id] = true; chain.unshift(p);
+      }
+      if (chain.length > CTX.LINEAGE_MAX) {
+        drop('ancestors', chain.length - CTX.LINEAGE_MAX);
+        chain = chain.slice(chain.length - CTX.LINEAGE_MAX);
+      }
+      chain.forEach(function (c) { pkg.lineage.push(snap(c, 'ancestor')); });
+      pkg.lineage.push(snap(anchor, 'parent'));
+
+      // earlier follow-ups under the same parent, in the order they were asked
+      var kids = cards.filter(function (k) { return k.parent === anchor.id; })
+                      .sort(function (a, b) { return a.sub - b.sub; });
+      if (kids.length > CTX.PRIOR_MAX) {
+        drop('priorFollowUps', kids.length - CTX.PRIOR_MAX);
+        kids = kids.slice(kids.length - CTX.PRIOR_MAX);
+      }
+      kids.forEach(function (k) { pkg.priorFollowUps.push(snap(k, 'prior-followup')); });
+
+      // explicit context links, breadth-first from the parent. loops are cut by
+      // `included`; we only expand through cards newly added here, never through
+      // cards already present as lineage.
+      var adj = {};
+      links.forEach(function (l) {
+        if (l.lineage || !idx[l.a] || !idx[l.b]) return;   // follow-up links are lineage, handled above
+        (adj[l.a] = adj[l.a] || []).push(l);
+        (adj[l.b] = adj[l.b] || []).push(l);
+      });
+      var seenLink = {}, queue = [{ c: anchor, d: 0 }], linked = 0;
+      while (queue.length) {
+        var cur = queue.shift();
+        (adj[cur.c.id] || []).forEach(function (l) {
+          if (seenLink[l.id]) return;
+          var other = idx[l.a === cur.c.id ? l.b : l.a];
+          seenLink[l.id] = true;
+          if (!l.context) {
+            dbg.excluded.push({ card: label(other), from: label(cur.c), word: l.word || '',
+                                reason: 'link has "use as context" OFF' });
+            return;
+          }
+          if (cur.d >= CTX.LINK_DEPTH) {
+            dbg.excluded.push({ card: label(other), from: label(cur.c), word: l.word || '',
+                                reason: 'beyond link depth ' + CTX.LINK_DEPTH });
+            return;
+          }
+          linkEdges.push({ from: label(cur.c), to: label(other), word: l.word || '' });
+          if (included[other.id]) return;                  // already present: keep the edge only
+          if (linked >= CTX.LINK_MAX) {
+            drop('links'); dbg.notes.push('linked card ' + label(other) + ' skipped: LINK_MAX ' + CTX.LINK_MAX);
+            return;
+          }
+          linked++;
+          var s = snap(other, 'linked');
+          s.hop = cur.d + 1;
+          s.via = { from: label(cur.c), to: label(other), word: l.word || '' };
+          pkg.links.push(s);
+          queue.push({ c: other, d: cur.d + 1 });
+        });
+      }
+    } else {
+      // nothing anchored: fallback chronological history (creation order), oldest first
+      cards.slice()
+        .sort(function (a, b) { return (b.t || b.id) - (a.t || a.id); })
+        .slice(0, CTX.RECENT_UNANCHORED).reverse()
+        .forEach(function (c) { pkg.recent.push(snap(c, 'recent')); });
+    }
+
+    // focus: a quote outranks the card it came from
+    if (quote && quote.text) {
+      var qc = idx[quote.cardId];
+      pkg.current.quote = { text: ctxClip(quote.text, CTX.QUOTE_CHARS), fromCard: qc ? label(qc) : null };
+      pkg.focus = { kind: 'quote', quotedFrom: qc ? label(qc) : null };
+    } else if (anchor) {
+      pkg.focus = { kind: 'card', card: label(anchor) };
+    }
+
+    // budget: drop the lowest-priority material first. The question, the quote
+    // and the parent are never dropped.
+    function used() {
+      var n = pkg.current.question.length + (pkg.current.quote ? pkg.current.quote.text.length : 0);
+      [pkg.lineage, pkg.priorFollowUps, pkg.links, pkg.recent].forEach(function (a) {
+        a.forEach(function (c) { n += c.q.length + c.a.length; });
+      });
+      return n;
+    }
+    while (used() > CTX.BUDGET_CHARS) {
+      if (pkg.recent.length) { pkg.recent.shift(); drop('recent'); continue; }
+      var deep = -1;
+      pkg.links.forEach(function (c, i) { if (c.hop > 1) deep = i; });
+      if (deep >= 0) { pkg.links.splice(deep, 1); drop('links'); continue; }
+      if (pkg.links.length) { pkg.links.pop(); drop('links'); continue; }
+      if (pkg.priorFollowUps.length) { pkg.priorFollowUps.shift(); drop('priorFollowUps'); continue; }
+      if (pkg.lineage.length > 1) { pkg.lineage.shift(); drop('ancestors'); continue; }
+      break;
+    }
+
+    // topology: only what survived, so the model can see why each piece is here
+    var have = {}, nodes = [];
+    [pkg.lineage, pkg.priorFollowUps, pkg.links, pkg.recent].forEach(function (a) {
+      a.forEach(function (c) {
+        if (!have[c.label]) { have[c.label] = true; nodes.push({ label: c.label, role: c.role }); }
+      });
+    });
+    var edges = [];
+    nodes.forEach(function (n) {
+      var c = reg[n.label], pc = c && c.parent != null ? idx[c.parent] : null;
+      if (pc && have[label(pc)]) edges.push({ type: 'followup', from: label(pc), to: n.label });
+    });
+    linkEdges.forEach(function (e) {
+      if (have[e.from] && have[e.to]) edges.push({ type: 'link', from: e.from, to: e.to, word: e.word, context: true });
+    });
+    if (anchor) {
+      nodes.push({ label: 'this question', role: 'current' });
+      edges.push({ type: 'followup', from: label(anchor), to: 'this question' });
+    }
+    pkg.structure = { nodes: nodes, edges: edges };
+    pkg.meta.includedCards = Object.keys(have).length;
+    pkg.meta.usedChars = used();
+    dbg.notIncluded = cards.length - pkg.meta.includedCards;
+    pkg.debug = dbg;
+    return pkg;
+  }
+  // what actually goes over the wire: the package without the debug-only block
+  function ctxStrip(pkg) {
+    var o = JSON.parse(JSON.stringify(pkg));
+    delete o.debug;
+    return o;
+  }
+  // <<CTX-END>> ------------------------------------------------------------
+
+  // ---- context log + temporary debug panel ----
+  var CTX_LOG = [], ctxN = 0, ctxSel = null;
+  var ctxPanel = document.getElementById('ctxpanel'), ctxBtn = document.getElementById('ctxbtn');
+  function ctxRecord(question, pkg) {
+    var e = { n: ++ctxN, question: question, pkg: pkg, answeredBy: 'pending', error: null, rendered: null };
+    CTX_LOG.unshift(e);
+    if (CTX_LOG.length > 40) CTX_LOG.pop();
+    ctxSel = e;
+    try {
+      console.groupCollapsed('[context] #' + e.n + ' ' +
+        (pkg.meta.anchored ? 'follow-up from ' + pkg.current.followUpFrom : 'plain question') +
+        (pkg.current.quote ? ' + quote' : '') + ' — ' + question.slice(0, 60));
+      console.log('sent to the model:', ctxStrip(pkg));
+      console.log('debug only (not sent):', pkg.debug);
+      console.groupEnd();
+    } catch (err) {}
+    ctxRefresh();
+    return e;
+  }
+  function ctxRefresh() { if (ctxPanel.classList.contains('open')) renderCtxPanel(); }
+  function toggleCtx(force) {
+    var open = force == null ? !ctxPanel.classList.contains('open') : force;
+    ctxPanel.classList.toggle('open', open);
+    ctxBtn.classList.toggle('on', open);
+    if (open) renderCtxPanel();
+  }
+  ctxBtn.addEventListener('click', function () { toggleCtx(); });
+  window.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) { e.preventDefault(); toggleCtx(); }
+  });
+
+  function ctxRows(list, fmt) {
+    if (!list.length) return '<div class="row">none</div>';
+    return list.map(function (c) { return '<div class="row">' + fmt(c) + '</div>'; }).join('');
+  }
+  function ctxQ(s) { return '“' + escapeHtml(String(s).replace(/\s+/g, ' ').slice(0, 70)) + '”'; }
+  function ctxDetail(e) {
+    var p = e.pkg, m = p.meta, h = '';
+    h += '<h4>Summary</h4><div class="row">' +
+         (m.anchored ? '<b>Anchored</b> — follow-up from card <b>' + escapeHtml(p.current.followUpFrom) + '</b>'
+                     : '<b>Plain question</b> — not anchored to a card') +
+         (p.current.quote ? ' · quote from <b>' + escapeHtml(p.current.quote.fromCard || '?') + '</b>' : '') + '</div>' +
+         '<div class="row">' + m.includedCards + ' of ' + m.boardCards + ' cards included · ' + m.usedChars +
+         ' / ' + m.budgetChars + ' chars · answered by <b>' + escapeHtml(e.answeredBy) + '</b>' +
+         (Object.keys(m.dropped).length ? ' · dropped ' + escapeHtml(JSON.stringify(m.dropped)) : '') + '</div>';
+    if (e.error) h += '<div class="row nots">model error: ' + escapeHtml(e.error) + '</div>';
+    h += '<h4>Current turn</h4><div class="row"><b>Question</b> ' + ctxQ(p.current.question) + '</div>';
+    if (p.current.quote) h += '<div class="row"><b>Quote (highest priority)</b> ' + ctxQ(p.current.quote.text) + '</div>';
+    h += '<h4>Lineage (oldest → parent)</h4>' +
+         ctxRows(p.lineage, function (c) { return '<b>' + escapeHtml(c.label) + '</b> ' + escapeHtml(c.role) + ' — ' + ctxQ(c.q); });
+    h += '<h4>Earlier follow-ups under the parent</h4>' +
+         ctxRows(p.priorFollowUps, function (c) { return '<b>' + escapeHtml(c.label) + '</b> — ' + ctxQ(c.q); });
+    h += '<h4>Explicit linked context</h4>' +
+         ctxRows(p.links, function (c) {
+           var v = c.via || {};
+           return '<b>' + escapeHtml(c.label) + '</b> via ' + escapeHtml(v.from) + ' · relation ' +
+                  (v.word ? '“' + escapeHtml(v.word) + '”' : '<i>(no label)</i>') + ' · hop ' + c.hop + ' — ' + ctxQ(c.q);
+         });
+    h += '<h4>Recent history (fallback)</h4>' +
+         ctxRows(p.recent, function (c) { return '<b>' + escapeHtml(c.label) + '</b> — ' + ctxQ(c.q); });
+    h += '<h4>Board structure sent</h4>' +
+         ctxRows(p.structure.edges, function (x) {
+           return escapeHtml(x.from) + (x.type === 'link' ? ' ↔ ' : ' → ') + escapeHtml(x.to) + ' · ' +
+                  (x.type === 'link' ? 'link' + (x.word ? ' “' + escapeHtml(x.word) + '”' : ' (no label)') : 'follow-up');
+         });
+    var d = p.debug || { excluded: [], notes: [] };
+    h += '<h4>Left out on purpose (debug only, not sent)</h4>' +
+         ctxRows(d.excluded, function (x) {
+           return '<span class="nots"><b>' + escapeHtml(x.card) + '</b> linked from ' + escapeHtml(x.from) +
+                  (x.word ? ' “' + escapeHtml(x.word) + '”' : '') + ' — ' + escapeHtml(x.reason) + '</span>';
+         }) +
+         '<div class="row">' + d.notIncluded + ' other card' + (d.notIncluded === 1 ? '' : 's') + ' on the board not included</div>' +
+         d.notes.map(function (n) { return '<div class="row nots">' + escapeHtml(n) + '</div>'; }).join('');
+    h += '<h4>Package JSON (exactly what /chat received)</h4><pre>' + escapeHtml(JSON.stringify(ctxStrip(p), null, 2)) + '</pre>' +
+         '<div class="btns"><button data-act="copy">Copy JSON</button><button data-act="render">' +
+         (e.rendered ? 'Refresh' : 'Show') + ' rendered prompt</button></div>';
+    if (e.rendered) h += '<h4>Rendered prompt (from the relay)</h4><pre>' + escapeHtml(e.rendered) + '</pre>';
+    return h;
+  }
+  function renderCtxPanel() {
+    var h = '<div class="ch"><span>Context sent to the model</span><button data-act="close" title="Close">×</button></div><div class="cl">';
+    if (!CTX_LOG.length) h += '<div class="ci"><span class="cq">Nothing asked yet.</span></div>';
+    CTX_LOG.forEach(function (e) {
+      h += '<div class="ci' + (e === ctxSel ? ' sel' : '') + '" data-n="' + e.n + '"><span>#' + e.n + '</span>' +
+           '<span class="cq">' + escapeHtml(e.question) + '</span>' +
+           '<span class="tag">' + (e.pkg.meta.anchored ? 'from ' + escapeHtml(e.pkg.current.followUpFrom) : 'plain') + '</span>' +
+           '<span class="tag">' + escapeHtml(e.answeredBy) + '</span></div>';
+    });
+    h += '</div><div class="cd">' + (ctxSel ? ctxDetail(ctxSel) : '') + '</div>';
+    var keep = ctxPanel.querySelector('.cd'), top = keep ? keep.scrollTop : 0;
+    ctxPanel.innerHTML = h;
+    var cd = ctxPanel.querySelector('.cd'); if (cd) cd.scrollTop = top;
+  }
+  ctxPanel.addEventListener('click', function (ev) {
+    var t = ev.target, row = t.closest && t.closest('.ci'), act = t.getAttribute && t.getAttribute('data-act');
+    if (row) {
+      var n = +row.getAttribute('data-n');
+      ctxSel = CTX_LOG.filter(function (x) { return x.n === n; })[0] || ctxSel;
+      renderCtxPanel();
+    } else if (act === 'close') toggleCtx(false);
+    else if (act === 'copy' && ctxSel) copyText(JSON.stringify(ctxStrip(ctxSel.pkg), null, 2), null);
+    else if (act === 'render' && ctxSel) fetchRendered(ctxSel);
+  });
+  // ask the relay for the exact prompt it builds from this package (no model call)
+  function fetchRendered(e) {
+    e.rendered = 'loading…'; ctxRefresh();
+    fetch(RELAY + '/context/render', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ package: ctxStrip(e.pkg) })
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+        return j;
+      });
+    }).then(function (j) {
+      e.rendered = j.messages.map(function (m) { return '[' + m.role + ']\n' + m.content; }).join('\n\n');
+      ctxRefresh();
+    }).catch(function (err) {
+      e.rendered = 'Could not render: ' + msg(err) + (isNet(err) ? ' — is relay.js running on ' + RELAY + '?' : '');
+      ctxRefresh();
+    });
+  }
+
+  // ---- follow-up target + quote ----
   // when set, the next committed exchange is injected as a child of this card
-  // (a sub-thread: 5-1, 5-2…). cleared after one use or on cancel.
-  var injectTarget = null;
+  // (a sub-thread: 5-1, 5-2…). cleared after one use or on cancel. a pending
+  // quote always belongs to the same card as the target.
+  var injectTarget = null, pendingQuote = null;
   function setInject(c) {
+    if (pendingQuote && (!c || c.id !== pendingQuote.cardId)) pendingQuote = null;
     injectTarget = c;
     document.body.classList.toggle('injecting', !!c);
     if (c) {
-      input.placeholder = 'follow-up under ' + label(c) + ' — Esc to cancel';
+      input.placeholder = (pendingQuote ? 'about the quoted passage in ' : 'follow-up under ') + label(c) + ' — Esc to cancel';
       input.focus();
     } else {
-      input.placeholder = 'Ask anything — tap the mic to speak';
-      clearQuote();   // injectTarget and the pending quote always live and die together
+      input.placeholder = 'type, or hold the mic to dictate';
     }
+    renderQuoteChip();
     draw();
   }
-
-  // ---------- quote-and-ask: select text in a card's answer, ask about it ----------
-  // Reuses injectTarget/setInject for the nesting — a quoted question lands as a
-  // linked child of the card it was selected from, same as "Ask a follow-up".
-  var pendingQuote = null;
-  var quotePop = document.getElementById('quotePop');
-  var quotePopBtn = document.getElementById('quotePopBtn');
-  var quoteChip = document.getElementById('quoteChip');
-  var quoteChipText = document.getElementById('quoteChipText');
-  var quoteChipX = document.getElementById('quoteChipX');
-
-  function hideQuotePop() { quotePop.classList.remove('show'); }
-
-  function clearQuote() {
-    pendingQuote = null;
-    quoteChip.classList.remove('show');
-    quoteChipText.textContent = '';
+  var askq = document.getElementById('askq'), qchip = document.getElementById('qchip'), askqInfo = null;
+  function renderQuoteChip() {
+    if (!pendingQuote) { qchip.classList.remove('show'); return; }
+    var c = byId(pendingQuote.cardId);
+    qchip.querySelector('.qf').textContent = 'quoting ' + (c ? label(c) : '?');
+    qchip.querySelector('.qt').textContent = '“' + pendingQuote.text.replace(/\s+/g, ' ') + '”';
+    qchip.classList.add('show');
   }
-
-  function showQuoteChip(text) {
-    pendingQuote = text;
-    var shown = text.length > 220 ? text.slice(0, 220).trim() + '…' : text;
-    quoteChipText.textContent = shown;
-    quoteChip.classList.add('show');
+  document.getElementById('qchipx').addEventListener('click', function () { setInject(null); });
+  function setQuote(c, text) {
+    pendingQuote = { text: text, cardId: c.id };
+    closeReader();
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
+    setInject(c);                       // the quote makes this a follow-up under its card
   }
-
-  document.addEventListener('mouseup', function (e) {
-    if (composer.contains(e.target) || quotePop.contains(e.target)) return;
-    // selection isn't finalized until after mouseup — check on the next tick
-    setTimeout(function () {
-      var sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount) { hideQuotePop(); return; }
-      var text = sel.toString().trim();
-      if (!text) { hideQuotePop(); return; }
-      var anchorNode = sel.anchorNode;
-      var el = anchorNode && (anchorNode.nodeType === 1 ? anchorNode : anchorNode.parentElement);
-      var cardEl = el && el.closest && el.closest('.card');
-      var card = cardEl && byId(Number(cardEl.dataset.id));
-      if (!card) { hideQuotePop(); return; }
-      var rect = sel.getRangeAt(0).getBoundingClientRect();
-      if (!rect || (!rect.width && !rect.height)) { hideQuotePop(); return; }
-      quotePop.style.left = Math.round(rect.left + rect.width / 2) + 'px';
-      quotePop.style.top = Math.round(rect.top - 8) + 'px';
-      quotePop.dataset.text = text;
-      quotePop.dataset.cardId = card.id;
-      quotePop.classList.add('show');
-    }, 0);
-  });
-
-  document.addEventListener('mousedown', function (e) {
-    if (quotePop.contains(e.target)) return;
-    hideQuotePop();
-  });
-
-  // a fresh selection, scroll, or canvas pan/zoom all invalidate the popover's position
-  document.addEventListener('scroll', hideQuotePop, true);
-  window.addEventListener('resize', hideQuotePop);
-
-  quotePopBtn.addEventListener('click', function (e) {
-    e.stopPropagation();
-    var text = quotePop.dataset.text || '';
-    var card = byId(Number(quotePop.dataset.cardId));
-    hideQuotePop();
-    if (!text || !card) return;
-    if (window.getSelection) window.getSelection().removeAllRanges();
-    setInject(card);
-    showQuoteChip(text);
-  });
-
-  quoteChipX.addEventListener('click', function () { setInject(null); });
-
-  // ---------- composer: grows with content, Shift+Enter for a newline ----------
-  var COMPOSER_MAX_H = 200;
-  function autoGrowInput() {
-    input.style.height = 'auto';
-    var h = Math.min(input.scrollHeight, COMPOSER_MAX_H);
-    input.style.height = h + 'px';
-    composer.classList.toggle('tall', input.scrollHeight > 40);
+  // a selection inside one card's question/answer (linear view, or the reader)
+  function selectionInfo() {
+    var s = window.getSelection();
+    if (!s || s.isCollapsed || !s.rangeCount) return null;
+    var text = s.toString().trim();
+    if (!text) return null;
+    var node = s.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
+    var box = el && el.closest ? el.closest('.q, .a, .rq, .ra') : null;
+    if (!box) return null;
+    var card = null;
+    if (box.closest('#reader')) card = readerCard;
+    else {
+      var ce = box.closest('.card');
+      card = ce ? B.cards.filter(function (c) { return c.el === ce; })[0] : null;
+    }
+    if (!card) return null;
+    var fn = s.focusNode, fel = fn && (fn.nodeType === 1 ? fn : fn.parentElement);
+    if (!fel || !box.contains(fel)) return null;      // must stay inside one block
+    return { text: text, card: card, rect: s.getRangeAt(0).getBoundingClientRect() };
   }
-  input.addEventListener('input', autoGrowInput);
+  function showAskq() {
+    var info = selectionInfo();
+    if (!info) { hideAskq(); return; }
+    askqInfo = info;
+    var r = info.rect;
+    askq.style.left = Math.max(8, Math.min(window.innerWidth - 140, r.left + r.width / 2 - 60)) + 'px';
+    askq.style.top = Math.max(8, r.top - 40) + 'px';
+    askq.style.display = 'block';
+  }
+  function hideAskq() { askq.style.display = 'none'; askqInfo = null; }
+  document.addEventListener('mouseup', function () { setTimeout(showAskq, 0); });
+  document.addEventListener('keyup', function (e) { if (e.shiftKey) setTimeout(showAskq, 0); });
+  document.addEventListener('selectionchange', function () {
+    var s = window.getSelection();
+    if (!s || s.isCollapsed) hideAskq();
+  });
+  askq.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep the selection alive
+  askq.addEventListener('click', function () {
+    if (!askqInfo) return;
+    var info = askqInfo;
+    hideAskq();
+    setQuote(info.card, info.text);
+  });
 
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && injectTarget) { setInject(null); return; }
-    if (e.key !== 'Enter' || e.shiftKey) return;   // Shift+Enter: newline, like any real editor
-    e.preventDefault();
-    if (!input.value.trim() || UI.busy) return;
+    if (e.key !== 'Enter' || !input.value.trim() || UI.busy) return;
     var text = input.value.trim();
-    if (pendingQuote) {
-      text = 'Re: "' + pendingQuote + '"\n\n' + text;
-    }
     input.value = '';
-    autoGrowInput();
     ask(text);
   });
 
   function ask(q) {
+    // snapshot what this question is asked FROM. the package is built now, so
+    // nothing armed or cleared while the answer streams can change it.
+    var tgt = injectTarget, quote = pendingQuote;
+    var entry = ctxRecord(q, buildContextPackage(q, tgt, quote));
+
     UI.busy = true;
     if (!live) orb.classList.add('live');
     flight.classList.remove('flying', 'done');
@@ -2370,8 +1975,8 @@
       positionFlight();
     }, function (full) {
       flight.classList.add('done');
-      land(q, full);
-    });
+      land(q, full, tgt, quote);
+    }, entry);
   }
 
   function positionFlight() {
@@ -2392,17 +1997,17 @@
     flight.style.top = Math.max(16, composer.offsetTop - h - 16) + 'px';
   }
 
-  function land(q, a) {
+  function land(q, a, tgt, quote) {
     var probe = sizeOf(q, a);
-    var tgt = injectTarget;
     var c, p;
+    if (tgt && B.cards.indexOf(tgt) === -1) tgt = null;   // target is no longer on this board
     if (tgt) {
       // child card: place directly under the parent (or its last child), linked
       var anchor = lastDescendantOrSelf(tgt);
       p = nearestFree({ x: anchor.x, y: anchor.y + anchor.h + PAD }, probe.w, probe.h, null);
-      c = addCard(q, a, p.x, p.y, { parent: tgt.id });
+      c = addCard(q, a, p.x, p.y, { parent: tgt.id, quote: quote });
       B.links.push({ id: ++linkUid, a: tgt.id, b: c.id, word: '', context: true, lineage: true });
-      setInject(null);
+      if (injectTarget === tgt) setInject(null);   // only clear if it's still the one we used
     } else {
       p = place(probe.w, probe.h);
       c = addCard(q, a, p.x, p.y);
@@ -2439,131 +2044,9 @@
     }, 400);
   }
 
-  // ---------- images: upload, drag-drop, or paste one onto the board ----------
-  // Stored as a data URL in the card itself (no upload backend exists) —
-  // downscaled/recompressed client-side first so a normal photo doesn't
-  // blow past localStorage's ~5-10MB-per-origin quota on its own.
-  var MAX_IMG_DIM = 1400, IMG_JPEG_QUALITY = 0.82, IMG_KEEP_ORIGINAL_UNDER = 380000; // bytes, approx
-
-  function compressImage(dataUrl, cb) {
-    var img = new Image();
-    img.onload = function () {
-      var w = img.naturalWidth, h = img.naturalHeight;
-      var approxBytes = dataUrl.length * 0.75;
-      if (approxBytes <= IMG_KEEP_ORIGINAL_UNDER && Math.max(w, h) <= MAX_IMG_DIM) {
-        cb(dataUrl, w, h); return;      // small enough already — keep the original (keeps PNG alpha etc.)
-      }
-      var scale = Math.min(1, MAX_IMG_DIM / Math.max(w, h));
-      var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
-      var canvas = document.createElement('canvas');
-      canvas.width = cw; canvas.height = ch;
-      canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
-      cb(canvas.toDataURL('image/jpeg', IMG_JPEG_QUALITY), cw, ch);
-    };
-    img.onerror = function () { cb(null, 0, 0); };
-    img.src = dataUrl;
-  }
-
-  function addImageFromFile(file, worldPos) {
-    if (!file || file.type.indexOf('image/') !== 0) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      compressImage(reader.result, function (dataUrl, w, h) {
-        if (!dataUrl) { flashStatus("Couldn't read that image.", 'err', 3000); return; }
-        landImage(file.name, dataUrl, w, h, worldPos);
-      });
-    };
-    reader.onerror = function () { flashStatus("Couldn't read that image.", 'err', 3000); };
-    reader.readAsDataURL(file);
-  }
-
-  // places an image exactly like a landed Q&A card: right of the last card,
-  // under an injectTarget as a linked child if one is set, or at a specific
-  // drop point — same placement rule as everything else on the board.
-  function landImage(name, dataUrl, naturalW, naturalH, worldPos) {
-    var w = CARD_W;
-    var ratio = (naturalW && naturalH) ? (naturalH / naturalW) : 0.66;
-    var ah = Math.round(Math.min(MAX_AH, Math.max(MIN_AH, w * ratio)));
-    var estH = ah + 130;   // rough allowance for label/note/padding pre-measure
-    var tgt = injectTarget;
-    var ideal;
-    if (tgt) {
-      var anchor = lastDescendantOrSelf(tgt);
-      ideal = { x: anchor.x, y: anchor.y + anchor.h + PAD };
-    } else if (worldPos) {
-      ideal = worldPos;
-    } else {
-      var last = byId(B.lastId);
-      ideal = last ? { x: last.x + last.w + GAP, y: last.y } : { x: -w / 2, y: -100 };
-    }
-    var p = nearestFree(ideal, w, estH, null);
-    var opts = { img: dataUrl, imgW: naturalW, imgH: naturalH, w: w, ah: ah };
-    if (tgt) opts.parent = tgt.id;
-    var c = addCard(name, '', p.x, p.y, opts);
-    if (tgt) {
-      B.links.push({ id: ++linkUid, a: tgt.id, b: c.id, word: '', context: true, lineage: true });
-      setInject(null);
-    }
-    B.lastId = c.id;
-    draw();
-    if (UI.mode === 'linear') scrollToBottom(); else maybeFollow(c);
-  }
-
-  var attachBtn = document.getElementById('attach');
-  var attachFile = document.getElementById('attachFile');
-  attachBtn.addEventListener('click', function () { attachFile.click(); });
-  attachFile.addEventListener('change', function () {
-    Array.from(attachFile.files || []).forEach(function (f) { addImageFromFile(f); });
-    attachFile.value = '';
-  });
-
-  // drag a file from the Finder/Desktop straight onto the board
-  var dragDepth = 0;
-  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1; }
-  stage.addEventListener('dragenter', function (e) {
-    if (!hasFiles(e)) return;
-    e.preventDefault(); dragDepth++; stage.classList.add('dragover');
-  });
-  stage.addEventListener('dragover', function (e) { if (hasFiles(e)) e.preventDefault(); });
-  stage.addEventListener('dragleave', function () {
-    dragDepth = Math.max(0, dragDepth - 1);
-    if (dragDepth === 0) stage.classList.remove('dragover');
-  });
-  stage.addEventListener('drop', function (e) {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    dragDepth = 0; stage.classList.remove('dragover');
-    var files = Array.from((e.dataTransfer && e.dataTransfer.files) || [])
-      .filter(function (f) { return f.type.indexOf('image/') === 0; });
-    if (!files.length) return;
-    var world = toWorld(ex(e), ey(e));
-    files.forEach(function (f, i) { addImageFromFile(f, { x: world.x + i * 24, y: world.y + i * 24 }); });
-  });
-
-  // paste an image from the clipboard (screenshot, copied image, etc.)
-  window.addEventListener('paste', function (e) {
-    var items = (e.clipboardData && e.clipboardData.items) || [];
-    var files = [];
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type && items[i].type.indexOf('image/') === 0) {
-        var f = items[i].getAsFile(); if (f) files.push(f);
-      }
-    }
-    if (!files.length) return;   // let normal text paste through untouched
-    e.preventDefault();
-    files.forEach(function (f) { addImageFromFile(f); });
-  });
-
   // ---------- sidebar wiring ----------
   document.getElementById('collapse').addEventListener('click', toggleRail);
   document.getElementById('mark').addEventListener('click', function () {
-    if (document.body.classList.contains('rail')) toggleRail();
-  });
-  // mobile: the sidebar is off-canvas by default at this width (see the
-  // mobile media query), so it needs its own always-reachable opener —
-  // #collapse lives inside #side, which is invisible until opened.
-  document.getElementById('mobileMenuBtn').addEventListener('click', toggleRail);
-  document.getElementById('sideScrim').addEventListener('click', function () {
     if (document.body.classList.contains('rail')) toggleRail();
   });
   function toggleRail() {
@@ -2575,19 +2058,13 @@
     })(t0);
   }
   document.getElementById('nNew').addEventListener('click', function () {
-    // already sitting on a blank chat — don't stack up empty "Untitled"
-    // entries every time this gets clicked. Reuse it instead.
-    if (B && B.cards.length === 0) { flash(this); input.focus(); return; }
     switchTo(newBoard('Untitled'));
   });
-  // Library and Images aren't built features yet — say so instead of a
-  // silent no-op, since a dead click reads as broken rather than unbuilt.
-  // Search and Settings are real now (wired up further down).
-  ['nLibrary', 'nImages'].forEach(function (id) {
-    var label = id === 'nLibrary' ? 'Library' : 'Images';
+  ['nSearch', 'nImages', 'nLibrary', 'settings'].forEach(function (id) {
     document.getElementById(id).addEventListener('click', function () {
-      flash(this);
-      flashStatus(label + " isn't built yet — every board lives in the sidebar for now.", '', 2800);
+      this.classList.add('on');
+      var self = this;
+      setTimeout(function () { self.classList.remove('on'); }, 140);
     });
   });
 
@@ -2605,70 +2082,39 @@
   window.addEventListener('pointerdown', function (e) {
     if (!menu.contains(e.target) && e.target.id !== 'dots3') menu.classList.remove('open');
   });
-  document.getElementById('shareBtn').addEventListener('click', function () {
-    flash(this);
-    var btn = this;
-    var url = location.origin && location.origin.indexOf('http') === 0 ? location.href : 'https://spatial-board.onrender.com/board.html';
-    var title = B.name || 'Spatial board';
-    var text = 'Boards live in this browser only right now, so this link opens the app, not this exact board — ' +
-      'export it first (••• menu → Export board) if you want to hand someone the actual content.';
-    if (navigator.share) {
-      navigator.share({ title: title, text: text, url: url }).catch(function () {});
-    } else {
-      copyText(url, btn);
-      flashStatus('Link copied — ' + text, '', 4600);
-    }
-  });
+  document.getElementById('shareBtn').addEventListener('click', function () { flash(this); });
   document.getElementById('miPin').addEventListener('click', function () {
-    B.pinned = !B.pinned; renderRecents(); menu.classList.remove('open'); scheduleSave();
+    B.pinned = !B.pinned; renderRecents(); menu.classList.remove('open');
   });
-  ['miFiles', 'miArchive'].forEach(function (id) {
+  ['miFiles', 'miArchive', 'miDelete'].forEach(function (id) {
     document.getElementById(id).addEventListener('click', function () {
       menu.classList.remove('open');
     });
   });
-  var miExport = document.getElementById('miExport');
-  if (miExport) miExport.addEventListener('click', function () {
-    exportBoardJSON(); menu.classList.remove('open');
-  });
-  document.getElementById('miDelete').addEventListener('click', function () {
-    menu.classList.remove('open');
-    deleteBoard(B);
-  });
 
   // ---------- board chrome ----------
-  var mNodeBtn = document.getElementById('mNode'), mLinearBtn = document.getElementById('mLinear');
-  var barThumb = document.getElementById('barThumb');
-  function updateBarThumb() {
-    var b = UI.mode === 'linear' ? mLinearBtn : mNodeBtn;
-    barThumb.style.width = b.offsetWidth + 'px';
-    barThumb.style.transform = 'translateX(' + b.offsetLeft + 'px)';
-  }
-  mNodeBtn.addEventListener('click', function () {
+  document.getElementById('mNode').addEventListener('click', function () {
     UI.mode = 'node'; this.classList.add('on');
     document.body.classList.remove('linear');
-    mLinearBtn.classList.remove('on'); updateBarThumb(); draw();
+    document.getElementById('mLinear').classList.remove('on'); draw();
   });
-  mLinearBtn.addEventListener('click', function () {
+  document.getElementById('mLinear').addEventListener('click', function () {
     UI.mode = 'linear'; this.classList.add('on');
     document.body.classList.add('linear');
-    mNodeBtn.classList.remove('on'); updateBarThumb();
+    document.getElementById('mNode').classList.remove('on');
     draw(); scrollToBottom();      // you open a chat at the newest message
   });
   document.getElementById('tThread').addEventListener('click', function () {
     UI.thread = !UI.thread; this.classList.toggle('on', UI.thread); draw();
   });
-  function centerOnCard(c) {
-    if (!c) return;
+  document.getElementById('tHome').addEventListener('click', function () {
+    var c = byId(B.lastId); if (!c) return;
     var p = renderPos(c);
     B.view.x = SR.w / 2 - (p.x + c.w / 2) * B.view.z;
     B.view.y = SR.h / 2 - (p.y + c.h / 2) * B.view.z;
     draw();
-  }
-  document.getElementById('tHome').addEventListener('click', function () {
-    centerOnCard(byId(B.lastId));
   });
-  window.addEventListener('resize', function () { syncRect(); draw(); updateBarThumb(); });
+  window.addEventListener('resize', function () { syncRect(); draw(); });
 
   // ---------- THE SEAM ----------
   // ================= voice =================
@@ -2680,11 +2126,7 @@
   // When opened straight from file:// the origin is 'null', so fall back to the
   // known relay address.
   var RELAY = (location.origin && location.origin.indexOf('http') === 0) ? location.origin : 'http://localhost:8787';
-  // OpenAI's Realtime API went GA in Aug 2025: the WebRTC SDP-exchange
-  // endpoint moved from /v1/realtime?model=... to /v1/realtime/calls (the
-  // model is now fixed server-side, baked into the ephemeral token /session
-  // mints — it no longer needs to travel as a query param here).
-  var REALTIME_URL = 'https://api.openai.com/v1/realtime/calls';
+  var REALTIME_URL = 'https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview';
 
   // status line above the composer. real messages, real errors.
   var vstatus = document.getElementById('vstatus');
@@ -2712,52 +2154,6 @@
   // no model response until you press Enter. clear states throughout.
   var dictate = document.getElementById('dictate');
   var dictRec = null, dictChunks = [], dictStream = null;
-  var dictTimer = null, dictStartTs = 0;
-  // Live caption while recording, purely so it's obvious the mic is
-  // actually hearing you — NOT what gets submitted. The real transcript
-  // still comes from the more accurate Whisper pass in onDictStop below,
-  // same as before. Browser speech recognition is inconsistent across
-  // browsers (Chrome: good; Safari: partial; Firefox: none), so this is a
-  // progressive enhancement — no live caption support just means you see
-  // the plain timer, exactly like before.
-  var dictSpeechRec = null, dictLiveText = '';
-  function dictTick() {
-    var secs = Math.floor((Date.now() - dictStartTs) / 1000);
-    var mm = Math.floor(secs / 60), ss = secs % 60;
-    var clock = mm + ':' + (ss < 10 ? '0' : '') + ss;
-    if (dictLiveText) {
-      var shown = dictLiveText.length > 70 ? '…' + dictLiveText.slice(-70) : dictLiveText;
-      setStatus('"' + shown + '" — ' + clock + ' — tap the mic to stop', 'listening');
-    } else {
-      setStatus('Recording ' + clock + ' — tap the mic to stop', 'listening');
-    }
-  }
-  function stopDictTimer() { if (dictTimer) { clearInterval(dictTimer); dictTimer = null; } }
-  function startDictCaption() {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;   // no live caption in this browser — timer-only, as before
-    try {
-      dictSpeechRec = new SR();
-      dictSpeechRec.continuous = true;
-      dictSpeechRec.interimResults = true;
-      dictSpeechRec.lang = navigator.language || 'en-US';
-      dictSpeechRec.onresult = function (e) {
-        var t = '';
-        for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-        dictLiveText = t.trim();
-      };
-      dictSpeechRec.onerror = function () {};   // cosmetic only — never surfaces as a real error
-      dictSpeechRec.onend = function () {
-        // some browsers auto-stop after a pause mid-recording; keep it running
-        if (dictRec && dictRec.state === 'recording') { try { dictSpeechRec.start(); } catch (e) {} }
-      };
-      dictSpeechRec.start();
-    } catch (e) { dictSpeechRec = null; }
-  }
-  function stopDictCaption() {
-    if (dictSpeechRec) { try { dictSpeechRec.onend = null; dictSpeechRec.stop(); } catch (e) {} dictSpeechRec = null; }
-    dictLiveText = '';
-  }
 
   dictate.addEventListener('click', function () {
     if (dictRec && dictRec.state === 'recording') stopDictation();
@@ -2785,10 +2181,7 @@
       dictRec.onstop = onDictStop;
       dictRec.start();
       dictate.classList.add('rec');
-      dictStartTs = Date.now();
-      startDictCaption();
-      dictTick();
-      dictTimer = setInterval(dictTick, 500);
+      setStatus('Recording — tap the mic to stop', 'listening');
     } catch (err) {
       flashStatus('Could not start recording: ' + (err && err.message ? err.message : err), 'err', 5000);
       cleanupDict();
@@ -2797,11 +2190,9 @@
 
   function stopDictation() {
     if (dictRec && dictRec.state !== 'inactive') {
-      stopDictTimer();
-      stopDictCaption();
       dictate.classList.remove('rec');
       dictate.classList.add('busy');
-      setStatus('Processing — transcribing what you said…', 'thinking');
+      setStatus('Processing…', 'thinking');
       dictRec.stop();
     }
   }
@@ -2822,7 +2213,6 @@
       dictate.classList.remove('busy');
       if (text) {
         input.value = (input.value ? input.value.trim() + ' ' : '') + text;
-        autoGrowInput();
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
         flashStatus('Transcribed — edit, then press Enter to send', '', 2600);
@@ -2837,8 +2227,6 @@
     }
   }
   function cleanupDict() {
-    stopDictTimer();
-    stopDictCaption();
     dictate.classList.remove('rec', 'busy');
     if (dictStream) { dictStream.getTracks().forEach(function (t) { t.stop(); }); dictStream = null; }
     dictRec = null;
@@ -2856,7 +2244,6 @@
     orbState = state;
     orb.className = state ? state : '';
     orb.classList.toggle('live', !!live);
-    orb.setAttribute('data-t', live ? 'End Live Voice' : 'Start Live Voice');
   }
 
   orb.addEventListener('click', function () { if (live) stopLive('Ended.'); else startLive(); });
@@ -2867,11 +2254,7 @@
     var stream, pc, token;
     // 1) ephemeral token from relay
     try {
-      var sres = await fetch(RELAY + '/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voice: (profile && profile.voice) || undefined })
-      });
+      var sres = await fetch(RELAY + '/session', { method: 'POST' });
       if (!sres.ok) {
         var d = await sres.text().catch(function () { return ''; });
         throw new Error('session HTTP ' + sres.status + (d ? ' — ' + d.slice(0, 160) : ''));
@@ -3005,84 +2388,88 @@
     else maybeFollow(c);
   }
 
-  // ================= model: real backend, streamed =================
-  // POST /chat on the same origin (server.js) proxies to OpenAI so the API
-  // key never reaches the browser. Board history (this board's prior cards,
-  // in creation order) rides along so answers have real continuity.
-  function boardHistory(excludeId) {
-    return B.cards
-      .filter(function (c) { return c.id !== excludeId && c.a; })
-      .sort(function (a, b) { return a.t - b.t; })
-      .slice(-40)
-      .map(function (c) { return { q: c.q, a: c.a }; });
+  // ================= model stub (typed input) =================
+  var CANNED = [
+    "There are two clocks running on this surface and they don't agree, which is the whole point.\n\nThe number is the first clock. It's monotonic, it's flat, it never renumbers, and it gaps when you delete. It answers exactly one question — when did this happen — and it answers it the same way forever. That's why it can be quiet. A fact that never changes doesn't need to be loud about itself.\n\nPosition is the second clock, except it isn't a clock at all. It's a claim. Card 4 sitting immediately under card 19 says the two belong together, and nothing in the transcript says that. The transcript says they're fifteen exchanges apart, which is true and useless. You put them together because you saw something, and the only record that you saw it is the fact that they're touching.\n\nSo the interesting content isn't in either coordinate system. It's in the disagreement between them. Time says far, space says near — that gap is where your thinking actually lives, and it exists nowhere in the text. Flatten the board back into a scroll and it's gone without a trace. Not compressed. Gone.",
+    "Yes.",
+    "That's the part I'd push on. If placement is free but the model never reads it, position is decoration — and a canvas whose position means nothing is a lie the interface tells you. You'd be arranging meaning into a surface that isn't listening.",
+    "The disfluency question is load-bearing and I don't think you get to defer it much longer.\n\nHere's the mechanism. Whisper and most production transcription models are trained on cleaned targets. Not as a post-process — the cleaning is baked into what they consider correct output. The model has learned that the right transcription of four seconds of \"I mean, the thing is, uh, the thing is\" is \"The thing is.\" It isn't editing you. It genuinely believes that's what you said, because that's what it was rewarded for producing.\n\nWhich means verbatim isn't a flag you set. It's a property of the model, and most of the good ones don't have it. You'd be choosing between a transcript that's accurate to your words and one that's accurate to your sentences, and those aren't the same artifact.\n\nWorth being honest about what you lose either way. The ums aren't noise — the pause before a word is where the reaching happened, and reaching is information. But a board full of \"uh\" is also a board you don't want to reread, and a record nobody rereads isn't serving anyone.\n\nI don't think there's a clean answer here. There's a decision, and it's yours, and it probably comes down to whether the board is a record of what you said or a record of how you thought.",
+    "Right — the number carries time, the position carries meaning. Two coordinate systems doing different jobs on one surface, and the interesting content is where they disagree.",
+    "Watch what the constraint actually buys you.\n\nThe engine knows two things. Next to the last one. Not on top of anything. That's the entire ruleset, and neither rule requires reading a single word of your content.\n\nCompare that to what any reasonable person would build instead. Cluster by topic. Auto-group related threads. Suggest a tidier arrangement. Every one of those needs the machine to form an opinion about what you meant — and the moment it has an opinion, your placement stops being an assertion and starts being a suggestion the system is free to overrule. You'd drag a card somewhere deliberate and come back to find it helpfully rehomed next to things it resembles. The board would be telling you what it thinks instead of holding what you think.\n\nSo the stupidity is the feature. A dumb engine can't disagree with you. It has no model of your meaning, so it can't be wrong about your meaning, so every arrangement on the board is yours by construction.\n\nThe cost is real and you should say it out loud: the board will never help you notice a connection you didn't already see. It has no idea what's on it. That's the trade. You get a surface that never lies about authorship, and you give up a surface that could have been clever.",
+    "I think so.",
+    "A card that's far in time but near in space is something you put there on purpose. Nothing in the conversation put them together — you did, with your hands, because you saw a connection the transcript doesn't contain. That's the highest-signal event on the board, and a linear chat can physically never capture it.",
+    "Not sure yet. Say more?",
+    "Linear is the honest test, and it's a harder constraint than it sounds.\n\nIf linear is a lens, it can't own anything. It reads the board and draws it as a scroll. It doesn't write x, it doesn't write y, it doesn't reorder, it doesn't get its own copy of anything. Toggle to linear, toggle back, and every card is exactly where you left it — not restored, not recomputed, just never touched. The moment linear starts writing positions it isn't a view anymore, it's a second source of truth, and now you've got two systems that can disagree about where a card lives.\n\nThe other half is behavioural, and it's the part people skip. In linear it has to be a chat. Not a board pretending to be a chat. It scrolls, it doesn't zoom, the wheel does what the wheel does in every other chat you've ever used, and new answers stream inline at the bottom instead of flying in from somewhere. Nothing floats. Nothing occludes. No card chrome, no minimize button, no grip in the corner. Those are board affordances and they have no meaning in a scroll.\n\nGet that right and linear costs you nothing to keep. It's a projection. Get it wrong and it's a mode, and modes are where prototypes go to die.",
+    "Then the placement engine is closed: the camera moves, cards never do. N+1 lands right of N. Occupied space goes to nearest free, never overlapping, never pushing. None of it requires the machine to have an opinion about what you said.",
+    "The anchoring question and the context question are the same question wearing two hats, and that's why neither one resolves on its own.\n\nSay you click card 7 and start talking. Something has to happen to \"right of N\" — the engine's one rule now points somewhere other than the end of the board, so card 8's successor lands next to 7 instead. Fine. That part's mechanical.\n\nThe part that isn't mechanical: what does the model get? If it gets the whole board, the anchor was purely cosmetic — you moved a card and changed nothing about the conversation. If it gets 1 through 7 and stops, you've built branching, and now the board has a topology with forks in it whether you wanted one or not. If it gets 7 alone, every anchored card is a cold start and continuity dies.\n\nAnd there's a nastier version. Once anchoring is a thing you can do, the model's context becomes a function of where cards are — which means position feeds back into content. Right now the board is downstream of the conversation. That change makes the conversation downstream of the board, and I don't think you can undo it once cards start existing that were generated under it.\n\nYou said don't decide this. I'm not deciding it. I'm saying the two halves are one decision, and picking an anchor gesture first will quietly pick the context rule for you."
+  ];
+  var ci = 0;
+  // the canned stand-in. still used when the relay/model can't answer.
+  function stubRespond(q, onToken, onDone) {
+    var full = CANNED[ci++ % CANNED.length];
+    var words = full.split(' '), i = 0, sofar = '';
+    var tick = setInterval(function () {
+      sofar += (i ? ' ' : '') + words[i++];
+      onToken(sofar);
+      if (i >= words.length) { clearInterval(tick); setTimeout(function () { onDone(full); }, 300); }
+    }, 46);
   }
 
-  function RESPOND(q, onToken, onDone) {
-    var sofar = '';
-    var ctrl = new AbortController();
+  // RESPOND is the seam. It receives the context package (entry.pkg), sends it
+  // to the relay's /chat, and streams the answer back. If the model can't
+  // answer, the real reason is shown and the stub answers so the board keeps going.
+  function RESPOND(q, onToken, onDone, entry) {
+    if (!entry || typeof fetch !== 'function') {
+      if (entry) entry.answeredBy = 'stub';
+      return stubRespond(q, onToken, onDone);
+    }
+    var got = '', finished = false;
+    function finish(text) { if (finished) return; finished = true; onDone(text); ctxRefresh(); }
+
     fetch(RELAY + '/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, history: boardHistory(null) }),
-      signal: ctrl.signal
-    }).then(async function (r) {
-      if (!r.ok || !r.body) {
-        var detail = '';
-        try { detail = (await r.json()).error; } catch (e) { try { detail = await r.text(); } catch (e2) {} }
-        throw new Error(detail || ('HTTP ' + r.status));
-      }
-      var reader = r.body.getReader();
-      var decoder = new TextDecoder();
-      for (;;) {
-        var chunk = await reader.read();
-        if (chunk.done) break;
-        sofar += decoder.decode(chunk.value, { stream: true });
-        onToken(sofar);
-      }
-      sofar += decoder.decode();
-      onDone(sofar || '(empty response)');
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ package: ctxStrip(entry.pkg) })      // debug block is not sent
+    }).then(function (res) {
+      if (!res.ok) return res.text().then(function (t) {
+        throw new Error('HTTP ' + res.status + (t ? ' — ' + t.slice(0, 240) : ''));
+      });
+      var reader = res.body.getReader(), dec = new TextDecoder();
+      return (function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return;
+          got += dec.decode(r.value, { stream: true });
+          onToken(got);
+          return pump();
+        });
+      })();
+    }).then(function () {
+      if (!got.trim()) throw new Error('the model returned an empty answer');
+      entry.answeredBy = 'model';
+      finish(got);
     }).catch(function (err) {
-      var m = err && err.message ? err.message : String(err);
-      var hint = /Failed to fetch|NetworkError/.test(m) ? ' — is the server running (npm start) on ' + RELAY + '?' : '';
-      onDone((sofar ? sofar + '\n\n' : '') + '[error: ' + m + hint + ']');
+      if (finished) { console.error(err); return; }               // failure after we already landed
+      entry.error = msg(err);
+      if (got.trim()) { entry.answeredBy = 'model (partial)'; finish(got); return; }
+      entry.answeredBy = 'stub';
+      flashStatus('Model call failed: ' + msg(err) + (isNet(err) ? ' — is relay.js running on ' + RELAY + '?' : '') +
+                  ' — canned stub used instead.', 'err', 7000);
+      ctxRefresh();
+      stubRespond(q, onToken, onDone);
     });
   }
 
+  // dev hook for the console: SKC.log[0].pkg, SKC.build('q', card, quote), SKC.panel()
+  window.SKC = { board: function () { return B; }, build: buildContextPackage, strip: ctxStrip,
+                 log: CTX_LOG, panel: toggleCtx };
+
   // ---------- start ----------
   syncRect();
-  (function boot() {
-    var saved = loadState();
-    if (saved) {
-      bid = saved.bid || 0; uid = saved.uid || 0; seq = saved.seq || 0; linkUid = saved.linkUid || 0;
-      boards = saved.boards.map(function (sb) {
-        return {
-          id: sb.id, name: sb.name, pinned: !!sb.pinned,
-          cards: (sb.cards || []).map(function (sc) {
-            return { id: sc.id, q: sc.q, a: sc.a, x: sc.x, y: sc.y,
-                     w: sc.w || CARD_W, ah: sc.ah || CARD_AH, h: 0, mini: !!sc.mini,
-                     el: null, interrupted: !!sc.interrupted,
-                     parent: sc.parent != null ? sc.parent : null,
-                     sub: sc.sub || 0, t: sc.t, n: sc.n, img: sc.img || null,
-                     imgW: sc.imgW || 0, imgH: sc.imgH || 0 };
-          }),
-          links: sb.links || [], nextN: sb.nextN || 1, lastId: sb.lastId || null,
-          view: sb.view || { x: SR.w / 2, y: SR.h / 2 - 60, z: 1 },
-          scroll: sb.scroll || 0
-        };
-      });
-      dedupeEmptyBoards();   // clean up any empty "Untitled" chats stacked up before this fix
-      var active = boards.filter(function (b) { return b.id === saved.activeBoardId; })[0] || boards[0];
-      switchTo(active);
-    } else {
-      var seed = newBoard('Untitled');
-      newBoard('Recruiter call preparation').pinned = true;
-      newBoard('Placement rules, camera behaviour');
-      newBoard('Does position mean anything');
-      switchTo(seed);
-    }
-  })();
+  var seed = newBoard('Untitled');
+  newBoard('Recruiter call preparation').pinned = true;
+  newBoard('Placement rules, camera behaviour');
+  newBoard('Does position mean anything');
+  switchTo(seed);
   draw();
-  updateBarThumb();
   input.focus();
 })();
 </script>
