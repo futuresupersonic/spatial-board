@@ -9,6 +9,12 @@
 //   POST /tts          real speech for "Read out loud" (replaces the
 //                      browser's robotic built-in speechSynthesis voice)
 //
+// Added: context-aware answers. POST /chat now also accepts { package } — the
+// board's structured context (follow-up lineage, linked cards with their bridge
+// words, quote) — and answers from that. The old { question, history } shape
+// still works untouched. Also new: GET /health, POST /context/render (debug),
+// and an optional BOARD_PASSWORD gate.
+//
 // Run:
 //   cp .env.example .env   # fill in OPENAI_API_KEY
 //   npm install
@@ -17,6 +23,7 @@
 
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
@@ -32,6 +39,9 @@ const TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
 // ('gpt-4o-realtime-preview') is on its way out. 'gpt-realtime' is the
 // current always-latest GA alias for the speech-to-speech model.
 const REALTIME_MODEL = process.env.REALTIME_MODEL || 'gpt-realtime';
+const CONTEXT_DEBUG = process.env.CONTEXT_DEBUG !== '0';   // print each rendered prompt in the logs; set 0 to silence
+const BOARD_PASSWORD = process.env.BOARD_PASSWORD || '';    // optional: if set, the whole site asks for it
+const BUILD = 'context-v1';
 
 if (!process.env.OPENAI_API_KEY) {
   console.warn(
@@ -104,17 +114,225 @@ async function fetchPageText(url) {
   }
 }
 
+// ===================== context package -> prompt =====================
+// The board sends a structured "context package" (see buildContextPackage in
+// board-v4.html): current turn, lineage, prior follow-ups, explicit links with
+// their bridge words, recent history (fallback only), and a small topology.
+// This section is the ONLY place the package becomes text for the model, so
+// /chat and /context/render can never disagree about what was sent.
+
+const CONTEXT_SYSTEM_PROMPT = [
+  'You are answering inside a spatial knowledge board. The user builds structure on the board by hand,',
+  'and that structure reaches you as a context package. Treat the package as a map of what matters for this question.',
+  '',
+  '- CURRENT TURN is what you must answer. If a QUOTED PASSAGE is present, the question is about that passage first;',
+  '  use its source card only to understand it.',
+  '- LINEAGE is the chain of earlier exchanges this question is a follow-up to, oldest first, ending with the parent',
+  '  card the user chose to continue from. Treat it as the conversation so far for this thread.',
+  '- EARLIER FOLLOW-UPS are questions already asked under the same parent, in the order they were asked.',
+  '- LINKED CONTEXT are exchanges the user explicitly connected and marked as context. Each has a relation label the user',
+  '  wrote (a "bridge word"). Use that label as the meaning of the connection. If a connection has no label, the user did not',
+  '  say how the cards relate, so do not invent a relationship.',
+  '- RECENT CONVERSATION appears only when the question is not anchored to a card. It is a fallback, not a topic.',
+  '- BOARD STRUCTURE shows how the included pieces relate, and how many other cards exist but were left out.',
+  '  Do not assume anything about cards that were left out.',
+  '',
+  'Rules: answer the current question directly. Do not summarize the package back to the user. Card labels such as "5-1" are',
+  'identifiers the user sees on the board; you may use them when it helps clarity. If the package does not contain what you',
+  'need, say so instead of guessing.'
+].join('\n');
+
+function clipS(s, n) {
+  s = String(s == null ? '' : s);
+  return s.length > n ? s.slice(0, n) + ' …[truncated]' : s;
+}
+function arr(a, max) { return Array.isArray(a) ? a.slice(0, max) : []; }
+
+// Defensive shape check. The client is trusted (it's your own board) but a
+// malformed or oversized body should fail with a clear message, not a crash.
+function sanitizePackage(p) {
+  if (!p || p.v !== 1) throw new Error('package.v must be 1');
+  if (!p.current || typeof p.current.question !== 'string' || !p.current.question.trim())
+    throw new Error('package.current.question is required');
+  const card = (c) => ({
+    label: clipS(c && c.label, 40), role: clipS(c && c.role, 40),
+    q: clipS(c && c.q, 4000), a: clipS(c && c.a, 8000),
+    hop: c && c.hop, via: c && c.via, detached: !!(c && c.detached), interrupted: !!(c && c.interrupted)
+  });
+  const q = p.current.quote;
+  return {
+    v: 1,
+    current: {
+      question: clipS(p.current.question, 8000),
+      followUpFrom: p.current.followUpFrom ? clipS(p.current.followUpFrom, 40) : null,
+      quote: q && q.text ? { text: clipS(q.text, 6000), fromCard: q.fromCard ? clipS(q.fromCard, 40) : null } : null
+    },
+    focus: p.focus || { kind: 'none' },
+    lineage: arr(p.lineage, 24).map(card),
+    priorFollowUps: arr(p.priorFollowUps, 24).map(card),
+    links: arr(p.links, 24).map(card),
+    recent: arr(p.recent, 12).map(card),
+    structure: {
+      nodes: arr(p.structure && p.structure.nodes, 80),
+      edges: arr(p.structure && p.structure.edges, 120)
+    },
+    meta: p.meta || {}
+  };
+}
+
+function renderCard(c) {
+  const tags = [];
+  if (c.detached) tags.push('detached follow-up');
+  if (c.interrupted) tags.push('answer was interrupted');
+  return 'Card ' + c.label + (tags.length ? ' (' + tags.join(', ') + ')' : '') +
+         '\n  Asked: ' + c.q + '\n  Answer: ' + c.a;
+}
+
+function renderMessages(pkg) {
+  const out = [];
+  const cur = pkg.current;
+  out.push('=== CURRENT TURN ===');
+  out.push('Question: ' + cur.question);
+  if (cur.quote) {
+    out.push('');
+    out.push('Quoted passage' + (cur.quote.fromCard ? ' (from card ' + cur.quote.fromCard + ')' : '') +
+             ' — the question is about this:');
+    out.push('"""' + cur.quote.text + '"""');
+  }
+  out.push(cur.followUpFrom
+    ? 'This question is a follow-up from card ' + cur.followUpFrom + '.'
+    : 'This question is not anchored to any card.');
+
+  if (pkg.lineage.length) {
+    out.push('', '=== LINEAGE (oldest first; the last entry is the card being followed up) ===');
+    pkg.lineage.forEach((c) => {
+      out.push('[' + (c.role === 'parent' ? 'parent' : 'ancestor') + '] ' + renderCard(c));
+    });
+  }
+  if (pkg.priorFollowUps.length) {
+    out.push('', '=== EARLIER FOLLOW-UPS UNDER CARD ' + cur.followUpFrom + ' (in the order they were asked) ===');
+    pkg.priorFollowUps.forEach((c) => out.push(renderCard(c)));
+  }
+  if (pkg.links.length) {
+    out.push('', '=== LINKED CONTEXT (connected by the user and marked as context) ===');
+    pkg.links.forEach((c) => {
+      const v = c.via || {};
+      const hops = c.hop > 1 ? ' (' + c.hop + ' links away from card ' + cur.followUpFrom + ')' : '';
+      const rel = v.word
+        ? 'connected to card ' + v.from + ' with the relation: "' + v.word + '"' + hops
+        : 'connected to card ' + v.from + ' — the user gave no label for this connection' + hops;
+      out.push('[linked] ' + renderCard(c));
+      out.push('  Relation: ' + rel);
+    });
+  }
+  if (pkg.recent.length) {
+    out.push('', '=== RECENT CONVERSATION (fallback; oldest first) ===');
+    pkg.recent.forEach((c) => out.push(renderCard(c)));
+  }
+
+  const st = pkg.structure;
+  if (st.nodes.length || st.edges.length) {
+    out.push('', '=== BOARD STRUCTURE ===');
+    if (st.nodes.length) out.push('Included: ' + st.nodes.map((n) => n.label + ' (' + n.role + ')').join(', '));
+    st.edges.forEach((e) => {
+      if (e.type === 'followup') out.push('  ' + e.from + ' → ' + e.to + '   follow-up');
+      else out.push('  ' + e.from + ' ↔ ' + e.to + '   link' + (e.word ? ' "' + e.word + '"' : ' (no label)') + ', marked as context');
+    });
+    const m = pkg.meta || {};
+    if (typeof m.boardCards === 'number')
+      out.push('The board has ' + m.boardCards + ' cards; ' + (m.includedCards || 0) +
+               ' are included above. The rest were left out and should not be assumed.');
+  }
+  return [
+    { role: 'system', content: CONTEXT_SYSTEM_PROMPT },
+    { role: 'user', content: out.join('\n') }
+  ];
+}
+
+function logPrompt(pkg, messages) {
+  if (!CONTEXT_DEBUG) return;
+  const bar = '─'.repeat(72);
+  console.log('\n' + bar);
+  console.log('[/chat] ' + new Date().toLocaleTimeString() + '  model=' + CHAT_MODEL +
+              '  anchored=' + !!pkg.current.followUpFrom + '  quote=' + !!pkg.current.quote +
+              '  lineage=' + pkg.lineage.length + ' prior=' + pkg.priorFollowUps.length +
+              ' links=' + pkg.links.length + ' recent=' + pkg.recent.length);
+  console.log(bar);
+  console.log(messages[1].content);
+  console.log(bar);
+}
+
+
+// answers a { package } request: the package becomes the prompt (see renderMessages)
+async function contextChat(req, res) {
+  let pkg;
+  try { pkg = sanitizePackage(req.body.package); }
+  catch (e) { return res.status(400).json({ error: 'bad context package: ' + e.message }); }
+  const messages = renderMessages(pkg);
+  logPrompt(pkg, messages);
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Accel-Buffering', 'no');
+  try {
+    const stream = await openai.chat.completions.create({ model: CHAT_MODEL, messages, stream: true });
+    res.on('close', () => { try { stream.controller && stream.controller.abort(); } catch (e) {} });   // user left: stop paying
+    for await (const part of stream) {
+      const delta = part.choices?.[0]?.delta?.content;
+      if (delta) res.write(delta);
+    }
+    res.end();
+  } catch (err) {
+    console.error('[board] /chat (context) error:', err.message || err);
+    if (!res.headersSent) {
+      const status = (err && (err.status || err.statusCode)) || 500;
+      res.status(status).type('text/plain').send('model API said ' + status + ': ' + clipS(err.message || String(err), 500));
+    } else {
+      res.end();
+    }
+  }
+}
+
 const app = express();
+
+// optional password gate: off unless BOARD_PASSWORD is set (Render -> Environment).
+// Any username works. /health stays open so Render's checks keep passing.
+function samePassword(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+if (BOARD_PASSWORD) {
+  app.use((req, res, next) => {
+    if (req.path === '/health') return next();
+    const m = /^Basic (.+)$/.exec(req.headers.authorization || '');
+    if (m) {
+      const pass = Buffer.from(m[1], 'base64').toString('utf8').split(':').slice(1).join(':');
+      if (samePassword(pass, BOARD_PASSWORD)) return next();
+    }
+    res.set('WWW-Authenticate', 'Basic realm="Spatial Board"').status(401).send('Password required');
+  });
+}
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => res.redirect('/board.html'));
+
+// is this the new server, and is the key set? (never reveals the key)
+app.get('/health', (req, res) => {
+  res.json({ ok: true, build: BUILD, model: CHAT_MODEL, keyConfigured: !!process.env.OPENAI_API_KEY, passwordGate: !!BOARD_PASSWORD });
+});
+// dry run for the board's debug panel: the exact prompt a package produces, no model call
+app.post('/context/render', express.json({ limit: '2mb' }), (req, res) => {
+  try { res.json({ messages: renderMessages(sanitizePackage(req.body && req.body.package)) }); }
+  catch (e) { res.status(400).json({ error: 'bad context package: ' + e.message }); }
+});
 
 // ---------------------------------------------------------------- /chat ----
 // body: { question: string, history: [{ q: string, a: string }] }
 // streams plain text chunks (the running "sofar" text is NOT re-sent —
 // each chunk is a delta, matching how the client's onToken accumulates).
 app.post('/chat', express.json({ limit: '2mb' }), async (req, res) => {
+  if (req.body && req.body.package) return contextChat(req, res);   // new: context-package requests
   const { question, history } = req.body || {};
   if (!question || typeof question !== 'string') {
     return res.status(400).json({ error: 'missing "question" string' });
